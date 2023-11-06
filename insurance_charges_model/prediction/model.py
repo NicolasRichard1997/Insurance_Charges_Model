@@ -2,6 +2,7 @@ import os
 import joblib
 import pandas as pd
 from ml_base import MLModel
+import featuretools as ft
 
 from insurance_charges_model import __version__
 from insurance_charges_model.prediction.schemas import InsuranceChargesModelInput, \
@@ -9,7 +10,7 @@ from insurance_charges_model.prediction.schemas import InsuranceChargesModelInpu
 
 
 class InsuranceChargesModel(MLModel):
-    """Prediction functionality of th Insurance Charges Model."""
+    """Prediction functionality of the Insurance Charges Model."""
 
     @property
     def display_name(self) -> str:
@@ -40,6 +41,7 @@ class InsuranceChargesModel(MLModel):
     def output_schema(self):
         """Return output schema of model."""
         return InsuranceChargesModelOutput
+  
 
     def __init__(self):
         """Class constructor that loads and deserializes the model parameters.
@@ -48,9 +50,15 @@ class InsuranceChargesModel(MLModel):
             The trained model parameters are loaded from the "model_files" directory.
 
         """
-        dir_path = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
-        with open(os.path.join(dir_path, "model_files", "1", "model.joblib"), 'rb') as file:
+        abs_path = "/home/nicolas/Documents/UQAM/MGL7320/LoggingOfRegressionModel/logging-of-regression-model-NicolasRichard1997/insurance_charges_model/training/model.joblib"
+        dir_path = os.getcwd()
+        model_path = os.path.join(dir_path, "insurance_charges_model", "training", "model.joblib")
+        with open(model_path, 'rb') as file:
+            print("Loading model from " + model_path)
             self._svm_model = joblib.load(file)
+
+
+            
 
     def predict(self, data: InsuranceChargesModelInput) -> InsuranceChargesModelOutput:
         """Make a prediction with the model.
@@ -67,3 +75,5 @@ class InsuranceChargesModel(MLModel):
         y_hat = round(float(self._svm_model.predict(X)[0]), 2)
 
         return InsuranceChargesModelOutput(charges=y_hat)
+
+

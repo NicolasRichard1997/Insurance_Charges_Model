@@ -1,5 +1,12 @@
 from pydantic import BaseModel, Field
 from enum import Enum
+import os
+import pyarrow  # Import PyArrow
+
+# Set the PYARROW_IGNORE_TIMEZONE environment variable
+os.environ['PYARROW_IGNORE_TIMEZONE'] = '1'
+
+
 
 
 class SexEnum(str, Enum):
@@ -29,6 +36,16 @@ class InsuranceChargesModelInput(BaseModel):
     smoker: bool = Field(None, title="Smoker", description="Whether beneficiary is a smoker.")
     region: RegionEnum = Field(None, title="Region", description="Region where beneficiary lives.")
 
+
+
+"""
+Following code is used to make predictions with the model:
+
+from insurance_charges_model.prediction.schemas import InsuranceChargesModelInput
+
+input = InsuranceChargesModelInput(age=22, sex="male", bmi=20.0, children=0, region="southwest")
+
+"""
 
 class InsuranceChargesModelOutput(BaseModel):
     """Schema for output of the model's predict method."""

@@ -3,7 +3,6 @@ import numpy as np
 
 from insurance_charges_model.prediction.transformers import BooleanTransformer
 
-
 class TransformersTests(unittest.TestCase):
 
     def test_boolean_transformer(self):
