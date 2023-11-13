@@ -1,50 +1,53 @@
-[![Review Assignment Due Date](https://classroom.github.com/assets/deadline-readme-button-24ddc0f5d75046c5622901739e7c5dd533143b0c8e959d652212380cedb1ea36.svg)](https://classroom.github.com/a/hZT7Ifs6)
-[![Open in Visual Studio Code](https://classroom.github.com/assets/open-in-vscode-718a45dd9cf7e7f842a935f5ebbe5719a5e09af4491e668f4dbf3b35d5cca122.svg)](https://classroom.github.com/online_ide?assignment_repo_id=12429194&assignment_repo_type=AssignmentRepo)
-# Regression Model
+# Construction et déploiement d'un modèle de régression en apprentissage automatique
 
-Building and deploying a regression ML model.
+[Répertoire Github](https://github.com/NicolasRichard1997/Insurance_Charges_Model/)
 
-This code is used in this [blog post](https://www.tekhnoal.com/regression-model.html).
+[Modèle sur DockerHub](https://hub.docker.com/repository/docker/nicolasrichard1997/insurance_charges_model/general) (Exécutable en local seulement)
 
-## Requirements
+Ce projet est une compilation, une adaptation et une traduction de deux projets par Brian Schmidt, [Training and Deploying an ML Model](https://www.tekhnoal.com/regression-model) et [Logging for ML Model Deployments](https://www.tekhnoal.com/logging-for-ml-models), visant à intégrer plusieurs techniques de science des données et de génie logiciel à un modèle d'apprentissage automatique. Dans ce blog, j'utiliserai des packages Python open source pour effectuer une exploration de données automatisée, une ingénierie de fonction automatisée, un apprentissage automatique automatisé et une validation de modèle. Dans un second temps, j'incorporerai les "logs" du second blog afin de pouvoir utiliser et dépanner le modèle de manière plus efficace. J'utiliserai également Docker et Kubernetes pour déployer le modèle localement. Le blog couvrira l'ensemble de la base de code du modèle, de l'exploration initiale des données au déploiement du modèle derrière une API RESTful sur Kubernetes.
 
-Python 3
+Le [blog suivant]( https://github.com/NicolasRichard1997/Insurance_Charges_Model/blob/main/blog_post/post.md) contient le processus détaillé des étapes suivies, modifiées et mises-à-jour en vue de la réalisation du projet. 
 
-## Installation 
+## Prérequis
 
-The Makefile included with this project contains targets that help to automate several tasks.
+Python 3.10
 
-To download the source code execute this command:
+## Installation
+
+Le fichier Makefile inclus dans ce projet contient des cibles qui facilitent l'automatisation de plusieurs tâches.
+
+Pour télécharger le code source, exécutez la commande :
 
 ```bash
-git clone https://github.com/schmidtbri/regression-model
+git clone https://github.com/NicolasRichard1997/Insurance_Charges_Model/
 ```
 
-Then create a virtual environment and activate it:
+Ensuite, créez un environnement virtuel et activez-le :
 
 ```bash
 # go into the project directory
-cd regression-model
+cd Insurance_Charges_Model
 
 make venv
 
 source venv/bin/activate
 ```
 
-Install the dependencies:
+Installez les dépendances :
 
 ```bash
 make dependencies
 ```
 
-The requirements.txt file only includes the dependencies needed to make predictions with the model. To train the model you'll need to install the dependencies from the train_requirements.txt file:
+Le fichier requirements.txt ne contient que les dépendances nécessaires pour effectuer des prédictions avec le modèle. Pour entraîner le modèle, vous devrez installer les dépendances du fichier train_requirements.txt :
 
 ```bash
 make train-dependencies
 ```
 
-## Running the Unit Tests
-To run the unit test suite execute these commands:
+## Exécution des tests unitaires
+
+Pour exécuter la suite de tests unitaires, exécutez les commandes suivantes :
 
 ```bash
 # first install the test dependencies
@@ -53,49 +56,59 @@ make test-dependencies
 # run the test suite
 make test
 
+# Les 5 tests devraient passés aves succès. Dans la version originale, des "warnings" subsistent toujours
+
+
 # clean up the unit tests
 make clean-test
 ```
 
-## Running the Service
+## Exécution du Service
 
-To start the service locally, execute these commands:
+Pour démarrer le service localement, exécutez ces commandes :
 
-```bash
-uvicorn rest_model_service.main:app --reload
-```
+bash
 
-## Generating an OpenAPI Specification
+`uvicorn rest_model_service.main:app --reload` 
 
-To generate the OpenAPI spec file for the REST service that hosts the model, execute these commands:
+## Génération d'une Spécification OpenAPI
 
-```bash
-export PYTHONPATH=./
-generate_openapi --output_file=service_contract.yaml
-```
+Pour générer le fichier de spécification OpenAPI pour le service REST qui héberge le modèle, exécutez ces commandes :
+
+bash
+
+`export PYTHONPATH=./
+generate_openapi --output_file=service_contract.yaml` 
 
 ## Docker
 
-To build a docker image for the service, run this command:
+Pour construire une image Docker pour le service local seulement, exécutez cette commande :
 
-```bash
-docker build -t insurance_charges_model:0.1.0 .
-```
+**Veuillez suivre les insructions dans le blog afin de générer une image déployable sur Kubernetes**
 
-To run the image, execute this command:
+bash
 
-```bash
-docker run -d -p 80:80 insurance_charges_model:0.1.0
-```
+`docker build -t insurance_charges_model:0.1.0 .` 
 
-To watch the logs coming from the image, execute this command:
+Pour exécuter l'image, utilisez cette commande :
 
-```bash
-docker logs $(docker ps -lq)
-```
+bash
 
-To stop the docker image, execute this command:
+`docker run -d -p 8000:8000 insurance_charges_model:0.1.0` 
 
-```bash
-docker kill $(docker ps -lq)
-```
+Pour surveiller les journaux provenant de l'image, exécutez cette commande :
+
+bash
+
+`docker logs $(docker ps -lq)` 
+
+Pour arrêter l'image Docker, utilisez cette commande :
+
+bash
+
+`docker kill $(docker ps -lq)`
+##
+
+
+
+Merci à Brian Schmidt pour les ressources et les blogs. 
