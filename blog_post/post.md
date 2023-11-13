@@ -1,164 +1,144 @@
-Title: Training and Deploying an ML Model
-Date: 2021-07-15 08:26
-Category: Blog
-Slug: regression-model
-Authors: Brian Schmidt
-Summary: This post is a collection of several different techniques that I wanted to learn. In this blog post I'll be using open source python packages to do automated data exploration, automated feature engineering, automated machine learning, and model validation. I'll also be using docker and kubernetes to deploy the model. I'll cover the entire codebase of the model, from the initial data exploration to the deployment of the model behind a RESTful API in Kubernetes.
+Title: Formation et Déploiement d'un Modèle d'Apprentissage Automatique
+Date: 16 novembre 2023
+Catégorie : Blog
+Slug : modèle-de-regression, 
+Auteurs : Nicolas Richard, Brian Schmidt
+
+
+Répertoire GitHub public: https://github.com/NicolasRichard1997/Insurance_Charges_Model
+
+Résumé : Ce blog est une compilation, une adaptation et une traduction de deux projets par Brian Schmidt (https://www.tekhnoal.com/regression-model.html,https://www.tekhnoal.com/logging-for-ml-models) qui vise à intégrer plusieurs techniques de science de données et de génie logiciel à u  modèle d'apprentissage automatique. Dans ce blog, j'utiliserai des packages Python open source pour effectuer une exploration de données automatisée, une ingénierie de fonction automatisée, un apprentissage automatique automatisé et une validation de modèle. Dans un second, j'incopererai les "logs" du second blog afin de pouvoir plus efficacement utiliser et dépanner le modèle. J'utiliserai également Docker et Kubernetes pour déployer le modèle localement. Le blog couvrira l'ensemble de la base de code du modèle, de l'exploration initiale des données au déploiement du modèle derrière une API RESTful dans Kubernetes.
 
 # Introduction
 
-This post is a collection of several different techniques that I wanted
-to learn. In this blog post I'll be using open source python packages to
-do automated data exploration, automated feature engineering, automated
-machine learning, and model validation. I'll also be using docker and
-kubernetes to deploy the model. I'll cover the entire codebase of the
-model, from the initial data exploration to the deployment of the model
-behind a RESTful API in Kubernetes.
+L'ingénierie de fonction automatisée est une technique utilisée pour automatiser la création de fonctionnalités à partir d'un ensemble de données sans avoir à les concevoir manuellement et à écrire le code pour les créer. L'ingénierie de fonction est très importante pour pouvoir créer des modèles ML qui fonctionnent bien sur un ensemble de données, mais cela prend beaucoup de temps et d'efforts. L'ingénierie de fonction automatisée peut générer de nombreuses fonctionnalités candidates à partir d'un ensemble de données donné, parmi lesquelles nous pouvons ensuite sélectionner les plus utiles. Dans ce billet de blog, j'utiliserai la bibliothèque feature_tools, qui aide à effectuer le prétraitement des fonctionnalités, la sélection des fonctionnalités, la sélection du modèle et la recherche d'hyperparamètres.
 
-Automated feature engineering is a technique that is used to automate
-the creation of features from a dataset without having to manually
-design them and write the code to create the features. Feature
-engineering is very important for being able to create ML models that
-work well on a dataset, but it takes a lot of time and effort. Automated
-feature engineering is able to generate many candidate features from a
-given dataset, from which we can then select the useful ones. In this
-blog post, I'll be using the [feature_tools library](https://www.featuretools.com/), 
-which helps to do feature preprocessing, feature selection, model selection, 
-and hyperparameter search.
+L'apprentissage automatique automatisé est un processus grâce auquel nous pouvons créer des modèles d'apprentissage automatique sans avoir à explorer de nombreux types de modèles et hyperparamètres différents. AutoML peut automatiser le processus de choix de la meilleure solution pour un ensemble de données, passant d'un ensemble de données brut à un modèle entraîné. Les outils AutoML permettent aux non-experts de créer des modèles ML sans avoir à comprendre tout ce qui se passe sous le capot. Tout ce dont on a besoin est un ensemble de données correctement traité et n'importe qui peut générer un modèle à partir des données. Dans ce billet de blog, j'utiliserai la bibliothèque TPOT, qui aide à effectuer le prétraitement des fonctionnalités, la sélection des fonctionnalités, la sélection du modèle et la recherche d'hyperparamètres.
 
-Automated machine learning is a process through which we can create
-machine learning models without having to explore many different model
-types and hyperparameters. AutoML can automate the process of choosing
-the best solution for a dataset, going from a raw dataset to a trained
-model. AutoML tools allow non-experts to be able to create ML models
-without having to understand everything that is happening under the
-hood. All that is needed is a properly processed data set and anyone can
-generate a model from the data. In this blog post, I'll be using the
-[TPOT library](https://epistasislab.github.io/tpot/), which helps
-to do feature preprocessing, feature selection, model selection, and
-hyperparameter search.
+Dans ce billet de blog, je montrerai également comment créer un service RESTful pour le modèle qui nous permettra de déployer rapidement et simplement le modèle. Nous montrerons également comment déployer le service modèle à l'aide de Docker et de Kubernetes. Ce billet de blog contient de nombreux outils et techniques différents pour la construction et le déploiement de modèles ML, et il n'est pas destiné à être une plongée approfondie dans l'une des techniques individuelles. Je voulais simplement montrer comment amener un modèle depuis l'exploration des données, jusqu'à la formation et enfin jusqu'au déploiement.
 
-In this blog post, I'll also show how to create a RESTful service for
-the model that will allow us to deploy the model quickly and simply.
-We'll also show how to deploy the model service using docker and
-Kubernetes. This blog post contains a lot of different tools and
-techniques for building and deploying ML models and it is not meant to
-be a deep dive into any of the individual techniques, I just wanted to
-show how to take a model all the way from data exploration, to training
-and finally to deployment.
+# Structure du Package
 
-# Package Structure
-
-The package we'll develop in this blog post has this structure:
-
+La structure du package que nous allons développer dans ce billet de blog est la suivante :
 ```
+- blog_post
+- configuration
+    - kubernetes_rest_config.yaml
+    - rest_configuration.yaml
+-data
+    - insurance.csv
+    - testing_set.csv
+    - trainning_set.csv
 - insurance_charges_model
-    - model_files (output files from model training)
-    - prediction, package for the prediction code
+    - model_files (fichiers de sortie de l'entraînement du modèle)
+    - prediction, package pour le code de prédiction
         - __init__.py
-        - model.py (prediction code)
-        - schemas.py (model input and output schemas)
-        - transformers.py (data transformers)
-    - training (package for the training code)
-        - data_exploration.ipynb (data exploration code)
-        - data_preparation.ipynb (data preparation code)
-        - model_training.ipynb (model training code)
-        - model_validation.ipynb (model validation code)
+        - model.py (code de prédiction)
+        - schemas.py (schémas d'entrée et de sortie du modèle)
+        - transformers.py (transformateurs de données)
+    - training (package pour le code d'entraînement)
+        - data_exploration.ipynb (code d'exploration des données)
+        - data_preparation.ipynb (code de préparation des données)
+        - model_training.ipynb (code d'entraînement du modèle)
+        - model_validation.ipynb (code de validation du modèle)
     - __init__.py
-- kubernetes (kubernetes manifests)
-    - deployment.yml
-    - namespace.yml
-    - service.yml
-- tests (unit tests for model codel)
-- Dockerfile (instructions for generating a docker image)
+- kubernetes 
+    - model_service.yaml
+- ml_model_logging
+    - filters.py
+    - __init__.py
+    - logging_decorator.py
+- tests
+    - __init__.py
+    - model_test.py
+    - transformers_test.py
+- venv (environment virtuel)
+- LICENCE
+- Dockerfile (instructions pour générer une image Docker)
 - Makefile
-- requirements.txt (list of dependencies)
-- rest_config.yaml (configuration for REST model service)
-- service_contract.yaml (OpenAPI service contract)
+- requirements.txt (liste des dépendances)
+- rest_config.yaml (configuration pour le service modèle REST)
+- service_contract.yaml (contrat de service OpenAPI)
 - setup.py
-- test_requirements.txt (test dependencies)
+- test_requirements.txt (dépendances de test)
 ```
+Le code original est disponible dans le répertoire GitHub de Brian Schmidt: https://github.com/schmidtbri/regression-model
 
-All of the code is available in a [github repository.](https://github.com/schmidtbri/regression-model)
+# Obtention des Données
 
-## Getting the Data
+Afin de former un modèle de régression, nous devons d’abord disposer d’un ensemble de données.
+Nous sommes allés dans Kaggle et avons trouvé [un ensemble de données](https://www.kaggle.com/mirichoi0218/insurance) qui
+contenait des informations sur les frais d’assurance. Pour faciliter le téléchargement du
+données, nous avons installé le [package kaggle python](https://pypi.org/project/kaggle/). Ensuite, nous avons exécuté ces
+commandes pour télécharger les données et les décompresser dans le dossier de données dans le
+projet:
 
-In order to train a regression model, we first need to have a dataset.
-We went into Kaggle and found [a dataset](https://www.kaggle.com/mirichoi0218/insurance) that
-contained insurance charges information. To make it easy to download the
-data, we installed the [kaggle python package](https://pypi.org/project/kaggle/). Then we executed these
-commands to download the data and unzip it into the data folder in the
-project:
-
-```bash
+```
 mkdir -p data
 kaggle datasets download -d mirichoi0218/insurance -p ./data \--unzip
 ```
 
-To make it even easier to download the data, we added a Makefile target
-for the commands:
+Pour faciliter encore plus le téléchargement des données, nous avons ajouté une cible Makefile
+pour les commandes :
 
-```makefile
-download-dataset: ## download dataset from Kaggle
+```
+download-dataset: ## télécharger l'ensemble de données depuis Kaggle
     mkdir -p data
-    kaggle datasets download -d mirichoi0218/insurance -p ./data \--unzip
+    kaggle datasets download -d mirichoi0218/insura
 ```
 
-Now all we need to do is execute this command:
+Il ne nous reste plus qu'à exécuter cette commande :
 
-```bash
+```
 make download-data
 ```
 
-Instead of having to remember how to get the data needed to do modeling,
-I always try to create a repeatable and documented process for creating
-the dataset. We also make sure to never store the dataset in source
-control, so we'll add this line to the .gitignore file:
+Au lieu de devoir se rappeler comment obtenir les données nécessaires à la modélisation,
+J'essaie toujours de créer un processus reproductible et documenté pour créer
+l’ensemble de données. Nous veillons également à ne jamais stocker l'ensemble de données dans la source
+contrôle, nous allons donc ajouter cette ligne au fichier .gitignore :
 
 ```
 data/
 ```
 
-# Training a Regression Model
+# Entraînement d'un Modèle de Régression
 
-Now that we have the dataset, we\'ll start working on training a
-regression model. We\'ll be doing data exploration, data preparation,
-feature engineering, automated model training and selection, and model
-validation.
+Maintenant que nous avons l'ensemble de données, nous allons commencer à travailler sur l'entraînement d'un modèle de régression. Nous effectuerons une exploration des données, une préparation des données, une ingénierie des fonctionnalités, un entraînement automatique et une sélection de modèle, ainsi qu'une validation du modèle.
 
-## Exploring the Data
+## Exploration des Données
 
-Data exploration is a key step that can tell us a lot about the dataset
-that we have to model. Data exploration can be highly customized to the
-specific dataset, but there are also tools that allow us to calculate
-the most common things we want to learn about a dataset automatically.
-[pandas_profiling](https://pandas-profiling.github.io/pandas-profiling/docs/master/rtd/)
-is a package that accepts a pandas data frame and creates an HTML report
-with a profile of the dataset in the data frame. According to the
-pandas_profiling documentation it has these capabilities:
+L'exploration des données est une étape clé qui peut nous fournir beaucoup d'informations sur l'ensemble de données que nous devons modéliser. L'exploration des données peut être hautement personnalisée pour un ensemble de données spécifique, mais il existe également des outils qui nous permettent de calculer automatiquement les choses les plus courantes que nous voulons savoir sur un ensemble de données. ydata_profiling est un package qui prend un dataframe pandas et crée un rapport HTML avec un profil de l'ensemble de données dans le dataframe. Selon la documentation de ydata_profiling, il a ces capacités :
 
--   Type inference: detect the types of columns in a dataframe.
--   Essentials: type, unique values, missing values
--   Quantile statistics like minimum value, Q1, median, Q3, maximum, range, interquartile range
--   Descriptive statistics like mean, mode, standard deviation, sum, median absolute deviation, coefficient of variation, kurtosis, skewness
--   Most frequent values
--   Histograms
--   Correlations highlighting of highly correlated variables, Spearman, Pearson and Kendall matrices
--   Missing values matrix, count, heatmap and dendrogram of missing values
--   Duplicate rows Lists the most occurring duplicate rows
--   Text analysis learn about categories (Uppercase, Space), scripts (Latin, Cyrillic) and blocks (ASCII) of text data
+    Inférence de type : détecter les types de colonnes dans un dataframe.
+    Essentiels : type, valeurs uniques, valeurs manquantes
+    Statistiques de quantiles comme la valeur minimale, Q1, médiane, Q3, maximum, plage, plage interquartile
+    Statistiques descriptives comme la moyenne, le mode, l'écart type, la somme, la déviation médiane absolue, le coefficient de variation, le kurtosis, l'asymétrie
+    Valeurs les plus fréquentes
+    Histogrammes
+    Mise en évidence des corrélations entre variables fortement corrélées, matrices Spearman, Pearson et Kendall
+    Matrice des valeurs manquantes, comptage, heatmap et dendrogramme des valeurs manquantes
+    Lignes dupliquées : liste des lignes dupliquées les plus fréquentes
+    Analyse de texte : apprenez-en davantage sur les catégories (majuscules, espaces), les scripts (latin, cyrillique) et les blocs (ASCII) des données textuelles
 
-These are the things that we would be looking into to learn more about
-the data set. To use the pandas_profiling package, we'll first load the
-dataset into a pandas dataframe:
+Ce sont les aspects que nous examinerions pour en savoir plus sur l'ensemble de données. Pour utiliser le package ydata_profiling, nous allons d'abord charger l'ensemble de données dans un dataframe pandas :
 
 ```python
 import pandas as pd
-from pandas_profiling import ProfileReport
-data = pd.read_csv("../../data/insurance.csv")
+import os
+current_directory = os.getcwd()
+repertory_path = os.path.abspath(os.path.join(current_directory, "..", ".."))
+from ydata_profiling import ProfileReport
 ```
 
-Now we can query the dataframe to find out the column types:
+Télécharger les données:
+
+```python
+data = pd.read_csv(repertory_path + "/data/insurance.csv")
+data.head()
+```
+
+Maintenant, nous pouvons interroger le dataframe pour connaître les types de colonnes :
 
 ```python
 data.dtypes
@@ -175,7 +155,7 @@ charges float64
 dtype: object
 ```
 
-To create the profile, we'll execute this code:
+Pour créer le profil, nous exécuterons ce code :
 
 ```python
 profile = ProfileReport(data, 
@@ -185,69 +165,62 @@ profile = ProfileReport(data,
 profile.to_notebook_iframe()
 ```
 
-Once the report is created, we'll save it to disk:
+Une fois créé, on peut sauvegarder le rapport en HTML :
 
 ```python
 profile.to_file("data_exploration_report.html")
 ```
+Il est maintenant possible de consulter le rapport en version HTML
 
-Right away the profile will tell us a few key details about the dataset:
+## Préparation des Données
 
-![Dataset Statistics]({attach}1.png){ width=100% }
+Afin de modéliser l'ensemble de données, nous devrons d'abord préparer et prétraiter les données. Pour commencer,
+chargeons à nouveau l'ensemble de données dans un dataframe :
 
-The profile also contains a few warnings about the data:
+```python
+import sys
+from copy import deepcopy
+import warnings
+import numpy as np
+from numpy import inf, nan
+import pandas as pd
+import joblib
+from sklearn.impute import SimpleImputer
+from sklearn.pipeline import Pipeline
+from sklearn.preprocessing import OrdinalEncoder
+from sklearn.compose import ColumnTransformer
+import featuretools as ft
+import os
+os.environ["PYARROW_IGNORE_TIMEZONE"] = "1"
+current_directory = os.getcwd()
+repertory_path = os.path.abspath(os.path.join(current_directory, "..", ".."))
+sys.path.append("../../")
 
-![Dataset Warnings]({attach}2.png){ width=100% }
+from insurance_charges_model.prediction.transformers import DFSTransformer
+from insurance_charges_model.prediction.transformers import InfinityToNaNTransformer
+from insurance_charges_model.prediction.transformers import IntToFloatTransformer
+from insurance_charges_model.prediction.transformers import BooleanTransformer
 
-None of these warnings are really that surprising given what we know
-about insurance charges, since health insurance premiums go up with age,
-and being a smoker increases your insurance premiums.
-
-The profile has a description for each variable, here's the description
-for the age variable:
-
-![Age Variable]({attach}3.png){ width=100% }
-
-As well as interactions between variables:
-
-![Dataset Interactions]({attach}4.png){ width=100% }
-
-And finally the correlations between the variables:
-
-![Dataset Correlations]({attach}5.png){ width=100% }
-
-By using the pandas_profiling package we can avoid writing the most
-common data analysis code that we write for all datasets. All of the
-code for data exploration is in the
-[data_exploration.ipynb](https://github.com/schmidtbri/regression-model/blob/master/insurance_charges_model/training/1.%20data_exploration.ipynb)
-notebook.
-
-## Preparing the Data
-
-In order to model the dataset, we'll first need to prepare and
-preprocess the data. To start, let's load the dataset into a dataframe
-again:
+warnings.filterwarnings('ignore')
+pd.set_option("display.max_columns", None)
+```
 
 ```python
 df = pd.read_csv("../../data/insurance.csv")
 ```
 
-To do data preparation, we'll use the [feature_tools package](https://www.featuretools.com/) 
-to create features from the data that is already in the dataset. To create features, we'll need
-to tell the feature_tools package about our data by identifying entities
-in the data:
+Pour effectuer la préparation des données, nous utiliserons le package feature_tools pour créer des fonctionnalités à partir des données déjà présentes dans l'ensemble de données. Pour créer des fonctionnalités, nous devrons informer le package feature_tools sur nos données en identifiant les entités dans les données :
 
 ```python
 entityset = ft.EntitySet(id="Transactions")
-entityset = entityset.entity_from_dataframe(entity_id="Transactions",
-    dataframe=df,
-    make_index=True,
-    index="index")
+entityset = entityset.add_dataframe(dataframe_name="Transactions",
+                                    dataframe=df,
+                                    make_index=True,
+                                    index="index")
+entityset
 ```
 
-In the code above, we created an EntitySet with the id "Transactions"
-which is the entity that is in the dataframe. The feature_tools package
-identified the variables associated with the Transactions entity:
+Dans le code ci-dessus, nous avons créé un ensemble d'entités avec l'identifiant "Transactions", qui est l'entité présente dans le dataframe. Le package feature_tools a identifié les variables associées à l'entité Transactions :
 
 ```python
 entityset["Transactions"].variables
@@ -276,80 +249,54 @@ feature_dataframe, features = ft.dfs(entityset=entityset,
                                                                         "charges"]})
 ```
 
-The feature_tools package uses a set of primitive operations to generate
-new features from the data. In this case, we're using the "add_numeric"
-primitive to generate a new feature by adding up the values in all pairs
-of numeric variables. By combining numerical variables in this way,
-we'll generate three new columns:
+Le package feature_tools utilise un ensemble d'opérations primitives pour générer de nouvelles fonctionnalités à partir des données. Dans ce cas, nous utilisons la primitive "add_numeric" pour générer une nouvelle fonctionnalité en additionnant les valeurs de toutes les paires de variables numériques. En combinant les variables numériques de cette manière, nous allons générer trois nouvelles colonnes :
 
--   age + bmi
--   age + children
--   bmi + children
+    age + bmi
+    age + enfants
+    bmi + enfants
 
-The subtract_numeric, multiply_numeric, and divide_numeric primitives
-also create new columns in a similar way, by applying subtraction,
-multiplication, and division respectively. The greater_than and
-less_than primitives create new boolean columns by comparing the values
-in all pairs of numerical variables. The greater_than primitive
-generated these new features:
+Les primitives subtract_numeric, multiply_numeric et divide_numeric créent également de nouvelles colonnes de manière similaire, en appliquant respectivement la soustraction, la multiplication et la division. Les primitives greater_than et less_than créent de nouvelles colonnes booléennes en comparant les valeurs de toutes les paires de variables numériques. La primitive greater_than a généré ces nouvelles fonctionnalités :
 
--   age > bmi
--   age > children
--   bmi > age
--   bmi > children
--   children > age
--   children > bmi
+    age > bmi
+    age > enfants
+    bmi > age
+    bmi > enfants
+    enfants > age
+    enfants > bmi
 
-At the end of the feature generation, we have 30 new features in the
-dataset that were generated from the data already there. Before we can
-use these new features, we need to figure out how to integrate the
-transformer with [scikit-learn
-pipelines](https://scikit-learn.org/stable/modules/generated/sklearn.pipeline.Pipeline.html),
-which is what we will be using to build up our model. To accomplish this
-we created a [transformer](https://github.com/schmidtbri/regression-model/blob/master/insurance_charges_model/prediction/transformers.py#L56-L99)
-which is instantiated like this:
+À la fin de la génération de fonctionnalités, nous avons 30 nouvelles fonctionnalités dans l'ensemble de données qui ont été générées à partir des données déjà présentes. Avant de pouvoir utiliser ces nouvelles fonctionnalités, nous devons comprendre comment intégrer le transformateur avec les pipelines scikit-learn, que nous utiliserons pour construire notre modèle. Pour ce faire, nous avons créé un transformateur qui est instancié de la manière suivante :
 
 ```python
-dfs_transformer = DFSTransformer("Transactions",
-                                 trans_primitives=["add_numeric", "subtract_numeric",
-                                                   "multiply_numeric", "divide_numeric",
-                                                   "greater_than", "less_than"],
-                                 ignore_variables={"Transactions": ["sex", "smoker",
-                                                                    "region"]})
+from insurance_charges_model.prediction.transformers import DFSTransformer
 ```
 
-Since the feature generation sometimes creates infinite values, we'll
-also need a
-[transformer](https://github.com/schmidtbri/regression-model/blob/master/insurance_charges_model/prediction/transformers.py#L102-L119)
-to convert these to nan values. This transformer is instantiated like
-this:
+```python
+target_entity = "Transactions"
+trans_primitives = ["add_numeric", "subtract_numeric", "multiply_numeric", "divide_numeric", "greater_than", "less_than"]
+ignore_variables = {"Transactions": ["sex", "smoker", "region"]}
+
+dfs_transformer = DFSTransformer(target_entity=target_entity, trans_primitives=trans_primitives, ignore_variables=ignore_variables)
+```
+
+Étant donné que la génération de fonctionnalités crée parfois des valeurs infinies, nous aurons également besoin d'un transformateur pour les convertir en valeurs NaN. Ce transformateur est instancié de la manière suivante :
 
 ```python
 infinity_transformer = InfinityToNaNTransformer()
 ```
 
-To handle the nan values generated by the InfinityToNaN transformer,
-we'll use a
-[SimpleImputer](https://scikit-learn.org/stable/modules/generated/sklearn.impute.SimpleImputer.html)
-from the scikit-learn library. It is instantiated like this:
+Pour gérer les valeurs NaN générées par le transformateur InfinityToNaN, nous utiliserons un SimpleImputer de la bibliothèque scikit-learn. Il est instancié comme ceci :
 
 ```python
 simple_imputer = SimpleImputer(missing_values=np.nan, strategy='mean')
 ```
 
-The SimpleImputer transformer has problems with imputing values that are
-not floats when using the \'mean\' strategy. To fix this, we\'ll create
-a
-[transformer](https://github.com/schmidtbri/regression-model/blob/master/insurance_charges_model/prediction/transformers.py#L36-L53)
-that will convert all integer columns into floating point columns:
+Le transformateur SimpleImputer a des problèmes pour imputer des valeurs qui ne sont pas des nombres flottants lorsqu'on utilise la stratégie 'mean'. Pour résoudre cela, nous allons créer un transformateur qui convertira toutes les colonnes entières en colonnes de nombres flottants :
 
 ```python
 int_to_float_transformer = IntToFloatTransformer()
 ```
 
-Lastly, we\'ll put the DFSTransformer, IntToFloatTransformer,
-InfinityToNaNTransformer, and SimpleImputer transformers into a Pipeline
-so they\'ll all work together as a unit:
+Enfin, nous placerons les transformateurs DFSTransformer, IntToFloatTransformer, InfinityToNaNTransformer et SimpleImputer dans un pipeline pour qu'ils fonctionnent tous ensemble comme une unité :
 
 ```python
 dfs_pipeline = Pipeline([
@@ -360,34 +307,21 @@ dfs_pipeline = Pipeline([
 ])
 ```
 
-Next, we'll deal with the boolean features in the dataset. To do this,
-we created a
-[transformer](https://github.com/schmidtbri/regression-model/blob/master/insurance_charges_model/prediction/transformers.py#L7-L33)
-that converts string values into the corresponding true or false values.
-It's instantiated like this:
+Ensuite, nous nous occuperons des fonctionnalités booléennes dans l'ensemble de données. Pour ce faire, nous avons créé un transformateur qui convertit les valeurs de chaîne en valeurs booléennes correspondantes. Il est instancié comme suit :
 
 ```python
 boolean_transformer = BooleanTransformer(true_value="yes", false_value="no")
 ```
 
-This transformer will be used to convert the "smoker" variable into a
-boolean value. The values found in the dataset are "yes" and "no". The
-encoder is configured to convert "yes" to True, and "no" to False.
+Ce transformateur sera utilisé pour convertir la variable "smoker" en une valeur booléenne. Les valeurs trouvées dans l'ensemble de données sont "yes" et "no". L'encodeur est configuré pour convertir "yes" en True et "no" en False.
 
-Next, we\'ll create an encoder that will encode the categorical
-features. The categorical features that we will encode will be \'sex\'
-and \'region\'. We'll use the
-[OrdinalEncoder](https://scikit-learn.org/stable/modules/generated/sklearn.preprocessing.OrdinalEncoder.html)
-from the scikit-learn library:
+Ensuite, nous allons créer un encodeur qui codera les fonctionnalités catégorielles. Les fonctionnalités catégorielles que nous encoderons seront 'sex' et 'region'. Nous utiliserons OrdinalEncoder de la bibliothèque scikit-learn :
 
 ```python
 ordinal_encoder = OrdinalEncoder()
 ```
 
-Now we can create a
-[ColumnTransformer](https://scikit-learn.org/stable/modules/generated/sklearn.compose.ColumnTransformer.html)
-that combines all of the pipelines and transformers we created above
-into one bigger pipeline:
+Maintenant, nous pouvons créer un ColumnTransformer qui combine tous les pipelines et transformateurs que nous avons créés ci-dessus en un pipeline plus grand :
 
 ```python
 column_transformer = ColumnTransformer(remainder="passthrough",
@@ -399,13 +333,9 @@ column_transformer = ColumnTransformer(remainder="passthrough",
                                        ])
 ```
 
-The ColumnTransformer applies the deep feature synthesis pipeline to all
-of the input variables, then it applies the boolean transformer to the
-"smoker" variable, and the ordinal encoder to the "sex" and "region"
-variables.
+Le ColumnTransformer applique le pipeline de synthèse de fonctionnalités profondes à toutes les variables d'entrée, puis applique le transformateur booléen à la variable "smoker" et l'encodeur ordinal aux variables "sex" et "region".
 
-Now we do a small test to make sure that the transformations are
-happening as expected:
+Maintenant, nous faisons un petit test pour nous assurer que les transformations se déroulent comme prévu :
 
 ```python
 test_df = pd.DataFrame([[65, "male", 12.5, 0, "yes", "southwest"],
@@ -420,48 +350,29 @@ if len(result[0]) != 33: # expecting 33 features to come out of the ColumnTransf
     raise ValueError("Unexpected number of columns found in the dataframe.")
 ```
 
-To test the pipeline, we created a dataframe with two rows, then we
-fitted the pipeline to it and transformed the dataframe. We expect to
-get 33 columns in the output dataframe because of the deep feature
-synthesis, so we test for that and raise an exception if it is not the
-case.
+Pour tester le pipeline, nous avons créé un dataframe avec deux lignes, puis nous avons ajusté le pipeline et transformé le dataframe. Nous nous attendons à obtenir 33 colonnes dans le dataframe de sortie en raison de la synthèse de fonctionnalités profondes, donc nous testons cela et élevons une exception si ce n'est pas le cas.
 
-The columns transformer can now be saved so we can use it later in the
-model training process:
+Le ColumnTransformer peut maintenant être sauvegardé afin que nous puissions l'utiliser ultérieurement dans le processus d'entraînement du modèle :
 
 ```python
 joblib.dump(column_transformer, "transformer.joblib")
 ```
 
-In this section we used scikit-learn pipelines to compose a complex
-series of data transformations that will be executed when the model is
-trained and also when it is used for predictions. By using pipelines, we
-are able to make sure that the steps always happen in the same order and
-with the same parameters. If we didn't use pipelines, we would end up
-rewriting the transformations twice, once for model training and once
-for prediction. All of the code for data preparation is in the
-[data_preparation.ipynb](https://github.com/schmidtbri/regression-model/blob/master/insurance_charges_model/training/2.%20data_preparation.ipynb)
-notebook.
+Dans cette section, nous avons utilisé des pipelines scikit-learn pour composer une série complexe de transformations de données qui seront exécutées lors de l'entraînement du modèle et également lors de son utilisation pour les prédictions. En utilisant des pipelines, nous nous assurons que les étapes se déroulent toujours dans le même ordre et avec les mêmes paramètres. Si nous n'utilisions pas de pipelines, nous aurions à réécrire les transformations deux fois, une fois pour l'entraînement du modèle et une fois pour la prédiction. Tout le code de préparation des données se trouve dans le cahier data_preparation.ipynb.
 
-## Training a Model
 
-The next step after preparing the data is to train a model. For this,
-we'll use the [TPOT
-package](https://epistasislab.github.io/tpot/), which is an
-automated machine learning tool that is able to search through many
-possible model types and hyperparameters and find the best pipeline for
-the dataset. The package uses [genetic
-programming](https://en.wikipedia.org/wiki/Genetic_programming) to
-search the space of possible ML pipelines.
 
-To train the model, we'll first load the dataset:
+## Entrainement du Modèle
+
+La prochaine étape après la préparation des données consiste à entraîner un modèle. Pour ce faire, nous utiliserons le package TPOT, qui est un outil d'apprentissage automatique automatisé capable de rechercher parmi de nombreux types de modèles possibles et hyperparamètres et de trouver le meilleur pipeline pour l'ensemble de données. Le package utilise la programmation génétique pour explorer l'espace des pipelines ML possibles.
+
+Pour entraîner le modèle, nous allons d'abord charger l'ensemble de données :
 
 ```python
 df = pd.read_csv("../../data/insurance.csv")
 ```
 
-Then, we'll create a training set and a test set by randomly selecting
-samples. The training testing split will be 80:20.
+Ensuite, nous créerons un ensemble d'entraînement et un ensemble de test en sélectionnant des échantillons de manière aléatoire. La répartition entre l'ensemble d'entraînement et l'ensemble de test sera de 80:20.
 
 ```python
 mask = np.random.rand(len(df)) < 0.8
@@ -469,18 +380,14 @@ training_set = df[mask]
 testing_set = df[~mask]
 ```
 
-Next, we'll save the data sets to the data folder because we'll need the
-two datasets when we do model validation. Since we're choosing to do
-this in another Jupyter notebook, we need to keep the data sets on the
-hard drive until then.
+Ensuite, nous sauvegarderons les ensembles de données dans le dossier "data" car nous en aurons besoin lorsque nous effectuerons la validation du modèle. Étant donné que nous avons choisi de le faire dans un autre cahier Jupyter, nous devons conserver les ensembles de données sur le disque dur jusqu'à ce moment-là.
 
 ```python
 training_set.to_csv("../../data/training_set.csv")
 testing_set.to_csv("../../data/testing_set.csv")
 ```
 
-Now that we have a training set, we'll need to separate the feature
-columns from the target column:
+Maintenant que nous avons un ensemble d'entraînement, nous devrons séparer les colonnes des caractéristiques de la colonne cible :
 
 ```python
 feature_columns = ["age", "sex", "bmi", "children", "smoker", "region"]
@@ -491,24 +398,19 @@ X_test = testing_set[feature_columns]
 y_test = testing_set[target_column]
 ```
 
-Next, we'll apply the preprocessing pipeline that we built in the data
-preprocessing code. First we'll load the transformer that we saved to
-disk:
+Ensuite, nous appliquerons le pipeline de prétraitement que nous avons construit dans le code de prétraitement des données. Tout d'abord, nous chargerons le transformateur que nous avons sauvegardé sur le disque :
 
 ```python
 transformer = joblib.load("transformer.joblib")
 ```
 
-Now we can apply it to the features dataframe in order to calculate the
-features that we created using automated feature engineering:
+Maintenant, nous pouvons l'appliquer au dataframe des caractéristiques afin de calculer les fonctionnalités que nous avons créées à l'aide de l'ingénierie des fonctionnalités automatisée :
 
 ```python
 features = transformer.fit_transform(X_train)
 ```
 
-Now that we have a features dataframe that we can train a model with,
-we'll launch the training by instantiating a TPOTRegressor object and
-calling the fit method:
+Maintenant que nous avons un dataframe de caractéristiques avec lequel nous pouvons entraîner un modèle, nous lancerons l'entraînement en instanciant un objet TPOTRegressor et en appelant la méthode fit :
 
 ```python
 tpot_regressor = TPOTRegressor(generations=50,
@@ -522,14 +424,13 @@ tpot_regressor = TPOTRegressor(generations=50,
 tpot_regressor = tpot_regressor.fit(features, y_train)
 ```
 
-The TPOTRegressor uses genetic programming so we need to provide some
-parameters that will define the size of the population and the number of
-generations. The random_state parameter makes it easier to replicate the
-training run, the cv parameter is the number of cross validation splits
-that we want to use, the n_jobs parameters tells TPOT how many processes
-to launch to train the model.
+Le TPOTRegressor utilise la programmation génétique, nous devons donc fournir certains paramètres qui définiront la taille de la population et le nombre de générations. Le paramètre random_state facilite la réplication de l'exécution de l'entraînement, le paramètre cv est le nombre de splits de validation croisée que nous voulons utiliser, le paramètre n_jobs indique à TPOT combien de processus lancer pour entraîner le modèle.
 
-Here is a sample of the output of the tpot_regressor as it trains:
+Le processus peut être plus ou moins long, dépendamment de votre machine. Dans mon cas, le processus a pris plus ou moins 45 minutes avec 
+le processeur suivant	: Intel(R) Core(TM) i7-1065G7 CPU @ 1.30GHz
+
+
+Voici un échantillon de la sortie du tpot_regressor pendant l'entraînement :
 
 ```
 Optimization Progress: 100%
@@ -554,27 +455,15 @@ power_t=0.1)), bootstrap=True, max_features=0.7500000000000001,
 min_samples_leaf=16, min_samples_split=14, n_estimators=100)
 ```
 
-It looks like the best pipeline found by TPOT includes a
-RandomForestRegressor combined with several preprocessing steps. Now
-that we have an optimal pipeline created by TPOT we will be adding our
-own preprocessors to it. To do this we\'ll need to have an unfitted
-pipeline object, we don\'t have that right now because the TPOTRegressor
-pipeline has been fitted.
+Il semble que le meilleur pipeline trouvé par TPOT inclut un RandomForestRegressor combiné avec plusieurs étapes de prétraitement. Maintenant que nous avons un pipeline optimal créé par TPOT, nous allons y ajouter nos propres préprocesseurs. Pour ce faire, nous aurons besoin d'avoir un objet pipeline non ajusté, ce que nous n'avons pas actuellement car le pipeline TPOTRegressor a été ajusté.
 
-To get an unfitted pipeline we\'ll ask TPOT for the fitted pipeline and
-[clone](https://scikit-learn.org/stable/modules/generated/sklearn.base.clone.html)
-it:
+Pour obtenir un pipeline non ajusté, nous demanderons à TPOT le pipeline ajusté et le clonerons :
 
 ```python
 unfitted_tpot_regressor = clone(tpot_regressor.fitted_pipeline_)
 ```
 
-Now that we have an unfitted Pipeline that is the same pipeline that was
-found by the TPOT package, we\'ll add our own preprocessors to the
-pipeline. This will ensure that the final pipeline will accept the
-features in the original dataset and will process the features
-correctly. We\'ll compose the unfitted TPOT pipeline and the transformer
-Pipeline into one Pipeline:
+Maintenant que nous avons un pipeline non ajusté qui est le même pipeline trouvé par le package TPOT, nous ajouterons nos propres préprocesseurs au pipeline. Cela garantira que le pipeline final acceptera les fonctionnalités de l'ensemble de données d'origine et traitera correctement les fonctionnalités. Nous composerons le pipeline TPOT non ajusté et le pipeline du transformateur en un seul pipeline :
 
 ```python
 model = Pipeline([("transformer", transformer),
@@ -582,7 +471,7 @@ model = Pipeline([("transformer", transformer),
                   ])
 ```
 
-Now we can train the model on the original, unprocessed dataset:
+On peut maintenant entrainer le modèle:
 
 ```python
 model.fit(X_train, y_train)
@@ -607,23 +496,23 @@ Pipeline(steps=[('transformer',
                                                                                                     'divide_numeric',
                                                                                                     'greater_than',
                                                                                                     'less_...
-                                                                                                    Pipeline(steps=[('normalizer', Normalizer()),
-                                                                                                                    ('stackingestimator',
-                                                                                                                     StackingEstimator(estimator=SGDRegressor(alpha=0.01,
-                                                                                                                                                              eta0=1.0,
-                                                                                                                                                              l1_ratio=0.0,
-                                                                                                                                                              penalty='elasticnet',
-                                                                                                                                                              power_t=0.1,
-                                                                                                                                                              random_state=42))),
-                                                                                                                    ('maxabsscaler', MaxAbsScaler()),
-                                                                                                                    ('randomforestregressor',
-                                                                                                                     RandomForestRegressor(max_features=0.7500000000000001,
-                                                                                                                                           min_samples_leaf=16,
-                                                                                                                                           min_samples_split=14,
-                                                                                                                                           random_state=42))]))])
+                                                  BooleanTransformer(),
+                                                  ['smoker']),
+                                                 ('ordinal_encoder',
+                                                  OrdinalEncoder(),
+                                                  ['sex', 'region'])])),
+                ('tpot_pipeline',
+                 Pipeline(steps=[('variancethreshold',
+                                  VarianceThreshold(threshold=0.1)),
+                                 ('standardscaler', StandardScaler()),
+                                 ('randomforestregressor',
+                                  RandomForestRegressor(max_features=0.9000000000000001,
+                                                        min_samples_leaf=18,
+                                                        min_samples_split=13,
+                                                        random_state=42))]))])
 ```
 
-Finally, we'll test the model with a single sample:
+On procède à un seul test unitaire:
 
 ```python
 test_df = pd.DataFrame([[65, "male", 12.5, 0, "yes", "southwest"]],
@@ -631,37 +520,49 @@ columns=["age", "sex", "bmi", "children", "smoker", "region"])
 result = model.predict(test_df)
 ```
 
-The result is:
+Le résultat:
 
 ```
-array([19326.59077456])
+array([24625.65374441])
+
 ```
 
-In order to use the model later, we'll serialize it to disk:
+On sérialise et sauvegarde le modèle afin de le réutiliser:
 
 ```python
 joblib.dump(model, "model.joblib")
 ```
 
-All of the code for training the model is in the
-[model_training.ipynb](https://github.com/schmidtbri/regression-model/blob/master/insurance_charges_model/training/3.%20model_training.ipynb)
-notebook.
 
-## Validating the Model
 
-In order to validate the model generated by the autoML process, we'll
-use the [yellow_brick
-library](https://www.scikit-yb.org/en/latest/).
 
-First, we'll load the training and testing sets that we previously saved
-to disk:
+
+
+## Validation du Modèle
+
+
+```python
+import sys
+import warnings
+import pandas as pd
+import joblib
+from sklearn.metrics import r2_score, mean_squared_error, mean_absolute_error
+from yellowbrick.regressor import ResidualsPlot, PredictionError
+import os
+current_directory = os.getcwd()
+repertory_path = os.path.abspath(os.path.join(current_directory, "..", ".."))
+warnings.filterwarnings('ignore')
+pd.set_option("display.max_columns", None)
+```
+
+Afin de valider le modèle généré par le processus AutoML, nous utiliserons la bibliothèque yellow_brick.
+
+Tout d'abord, nous chargerons les ensembles d'entraînement et de test que nous avons précédemment sauvegardés sur le disque :
 
 ```python
 training_set = pd.read_csv("../../data/training_set.csv")
 testing_set = pd.read_csv("../../data/testing_set.csv")
 ```
-
-Next, we'll separate the predictor variables from the target variable:
 
 ```python
 feature_columns = ["age", "sex", "bmi", "children", "smoker", "region"]
@@ -672,20 +573,17 @@ X_test = testing_set[feature_columns]
 y_test = testing_set[target_column]
 ```
 
-We'll load the fitted model object that was saved in a previous step:
+Nous chargerons l'objet modèle ajusté qui a été sauvegardé à une étape précédente :
 
 ```python
 model = joblib.load("model.joblib")
 ```
 
-We can now try to make predictions on the test set with the fitted
-pipeline:
-
 ```python
 predictions = model.predict(X_test)
 ```
 
-The model's r\^2 and errors are calculated like this:
+Le coefficient de détermination (r²) du modèle et les erreurs sont calculés comme suit :
 
 ```python
 r2 = r2_score(y_test, predictions)
@@ -693,15 +591,15 @@ mse = mean_squared_error(y_test, predictions)
 mae = mean_absolute_error(y_test, predictions)
 ```
 
-The results are:
+les résulats :
 
 ```
-r2 score: 0.827414647586443
-mean squared error: 24830561.579995826
-mean absolute error: 2713.6533067216383
+Score r² : 0,8598880763704084
+Erreur quadratique moyenne : 22 855 821,171577632
+Erreur absolue moyenne : 2 651,672336749037
 ```
 
-Next, we'll create a yellow_brick visualizer for the model:
+Ensuite, nous créerons un visualiseur yellow_brick pour le modèle :
 
 ```python
 visualizer = ResidualsPlot(model)
@@ -710,19 +608,9 @@ visualizer.score(X_test, y_test)
 visualizer.show()
 ```
 
-The [ResidualsPlot
-visualizer](https://www.scikit-yb.org/en/latest/api/regressor/residuals.html)
-shows us the difference between the observed value and the predicted
-value of the target variable. This visualization is useful to see if
-there are value ranges for the target variable that have more or less
-error than other value ranges. The plot generated for our model looks
-like this:
+Le visualiseur ResidualsPlot nous montre la différence entre la valeur observée et la valeur prédite de la variable cible. Cette visualisation est utile pour voir s'il existe des plages de valeurs pour la variable cible qui présentent plus ou moins d'erreur que d'autres plages de valeurs. 
 
-![Residuals Plot]({attach}6.png){ width=100% }
-
-Next, we'll generate the prediction error plot for the model using the
-[PredictionError
-visualizer](https://www.scikit-yb.org/en/latest/api/regressor/peplot.html):
+Ensuite, nous générerons le graphique d'erreur de prédiction pour le modèle en utilisant le visualiseur PredictionError :
 
 ```python
 visualizer = PredictionError(model)
@@ -731,60 +619,38 @@ visualizer.score(X_test, y_test)
 visualizer.show()
 ```
 
-The prediction error plot shows the actual values of the target variable
-against the predicted values generated by the model. This allows us to
-see how much variance is in the predictions made by the model. The plot
-generated for our model looks like this:
+Le graphique d'erreur de prédiction montre les valeurs réelles de la variable cible par rapport aux valeurs prédites générées par le modèle. Cela nous permet de voir quelle est la variance dans les prédictions faites par le modèle.
 
-![Prediction Error Plot]({attach}7.png){ width=100% }
 
-All of the code for validating the model is in the
-[model_validation.ipynb](https://github.com/schmidtbri/regression-model/blob/master/insurance_charges_model/training/4.%20model_validation.ipynb)
-notebook.
+# Effectuer des prédictions
 
-# Making Predictions with the Model
+Le modèle de charges d'assurance est maintenant prêt à être utilisé pour faire des prédictions, donc maintenant nous devons le rendre disponible dans un format facile à utiliser. Le package ml_base définit une classe de base simple pour le code de prédiction de modèle qui nous permet de "envelopper" le code dans une classe qui suit l'interface MLModel. Cette interface publie les informations suivantes sur le modèle :
 
-The insurance charges model is now ready to be used to make predictions,
-so now we need to make it available in an easy to use format. The
-[ml_base package](https://schmidtbri.github.io/ml-base/) defines
-a simple base class for model prediction code that allows us to "wrap"
-the code in a class that follows the MLModel interface. This interface
-publishes this information about the model:
+    Nom qualifié, un identifiant unique pour le modèle
+    Nom d'affichage, un nom convivial pour le modèle utilisé dans les interfaces utilisateur
+    Description, une description du modèle
+    Version, version sémantique de la base de code du modèle
+    Schéma d'entrée, un objet qui décrit les données d'entrée du modèle
+    Schéma de sortie, un objet qui décrit le schéma de sortie du modèle
 
--   Qualified Name, a unique identifier for the model
--   Display Name, a friendly name for the model used in user interfaces
--   Description, a description for the model
--   Version, semantic version of the model codebase
--   Input Schema, an object that describes the model\'s input data
--   Output Schema, an object that describes the model\'s output schema
+L'interface MLModel dicte également que la classe du modèle implémente deux méthodes :
 
-The MLModel interface also dictates that the model class implements two
-methods:
+    __init__, méthode d'initialisation qui charge les artefacts du modèle nécessaires pour effectuer des prédictions
+    predict, méthode de prédiction qui reçoit les entrées du modèle, fait une prédiction et renvoie les sorties du modèle
 
--   \_\_init\_\_, initialization method which loads any model artifacts needed to make predictions
--   predict, prediction method that receives model inputs makes a prediction and returns model outputs
+En utilisant la classe de base MLModel, nous pourrons faire des choses plus intéressantes plus tard avec le modèle. Si vous souhaitez en savoir plus sur le package ml_base, il y a un article de blog à ce sujet.
 
-By using the MLModel base class we'll be able to do more interesting
-things later with the model. If you'd like to learn more about the
-ml_base package, there is a [blog post]({filename}/articles/ml-base-examples/basic.md)
-about it. 
-
-To install the ml_base package, execute this command:
+Pour installer le package ml_base, exécutez cette commande :
 
 ```bash
 pip install ml_base
 ```
 
+## Création de schémas d'entrée et de sortie
 
-## Creating Input and Output Schemas
+Avant d'écrire la classe du modèle, nous devrons définir les schémas d'entrée et de sortie du modèle. Pour ce faire, nous utiliserons le [package pydantic](https://pydantic-docs.helpmanual.io/).
 
-Before writing the model class, we'll need to define the input and
-output schemas of the model. To do this, we'll use the [pydantic
-package](https://pydantic-docs.helpmanual.io/).
-
-The "sex" feature used by the model is a categorical feature that can be
-stated as an enumeration because it has a limited number of allowed
-values:
+La caractéristique "sex" utilisée par le modèle est une caractéristique catégorielle qui peut être déclarée comme une énumération car elle a un nombre limité de valeurs autorisées :
 
 ```python
 class SexEnum(str, Enum):
@@ -792,9 +658,9 @@ class SexEnum(str, Enum):
     female = "female"
 ```
 
-We'll use this class as a type in the input schema of the model.
+Nous utiliserons cette classe comme type dans le schéma d'entrée du modèle.
 
-We'll also need another enumeration for the region feature:
+Nous aurons également besoin d'une autre énumération pour la caractéristique de région :
 
 ```python
 class RegionEnum(str, Enum):
@@ -804,51 +670,52 @@ class RegionEnum(str, Enum):
     northeast = "northeast"
 ```
 
-Now we're ready to create the input schema for the model:
+Maintenant, nous sommes prêts à créer le schéma d'entrée pour le modèle :
 
 ```python
-class InsuranceChargesModelInput(BaseModel):
-    age: int = Field(None, title="Age", ge=18, le=65, description="Age of primary beneficiary in years.")
-    sex: SexEnum = Field(None, title="Sex", description="Gender of beneficiary.")
-    bmi: float = Field(None, title="Body Mass Index", ge=15.0, le=50.0, description="Body mass index of beneficiary.")
-    children: int = Field(None, title="Children", ge=0, le=5, description="Number of children covered by health insurance.")
-    smoker: bool = Field(None, title="Smoker", description="Whether beneficiary is a smoker.")
-    region: RegionEnum = Field(None, title="Region", description="Region where beneficiary lives.")
+class  InsuranceChargesModelInput(BaseModel):
+
+"""Schema for input of the model's predict method."""
+
+  
+
+age: int  =  Field(None, title="Age", ge=18, le=65, description="Age of primary beneficiary in years.")
+
+sex: SexEnum  =  Field(None, title="Sex", description="Gender of beneficiary.")
+
+bmi: float  =  Field(None, title="Body Mass Index", ge=15.0, le=50.0, description="Body mass index of beneficiary.")
+
+children: int  =  Field(None, title="Children", ge=0, le=5, description="Number of children covered by health "
+
+"insurance.")
+
+smoker: bool  =  Field(None, title="Smoker", description="Whether beneficiary is a smoker.")
+
+region: RegionEnum  =  Field(None, title="Region", description="Region where beneficiary lives.")
 ```
 
-We used the SexEnum and RegionEnum as types for the categorical
-variables, adding descriptions to the fields. We also added the age,
-bmi, children, and smoker fields. These fields are of type integer,
-float, integer, and boolean in turn.
+Nous avons utilisé SexEnum et RegionEnum comme types pour les variables catégorielles, ajoutant des descriptions aux champs. Nous avons également ajouté les champs age, bmi, children et smoker. Ces champs sont de type entier, flottant, entier et booléen respectivement.
 
-We can use the class to create an object like this:
+Nous pouvons utiliser la classe pour créer un objet comme ceci :
 
 ```python
 from insurance_charges_model.prediction.schemas import InsuranceChargesModelInput
 
 input = InsuranceChargesModelInput(age=22, sex="male", bmi=20.0, children=0, region="southwest")
 ```
-
-Now that we have the model input defined, we'll move on to the model
-output. This class is a lot simpler:
+Maintenant que nous avons défini l'entrée du modèle, passons à la sortie du modèle. Cette classe est beaucoup plus simple :
 
 ```python
 class InsuranceChargesModelOutput(BaseModel):
     charges: float = Field(None, title="Charges", description="Individual medical costs billed by health insurance to customer in US dollars.")
 ```
+Le modèle n'a qu'une seule sortie, les frais en dollars américains qui sont prédits, qui est un champ en virgule flottante. Les schémas du modèle se trouvent dans le le module schemas.py, dans le package de prédiction.
 
-The model only has one output, the charges in US dollars that are
-predicted, which is a floating point field. The model schemas are in the
-[schemas
-module](https://github.com/schmidtbri/regression-model/blob/master/insurance_charges_model/prediction/schemas.py)
-in the prediction package.
+## Création de la classe du modèle
 
-## Creating the Model Class
+Maintenant que nous avons défini les schémas d'entrée et de sortie pour le modèle, nous pourrons créer la classe qui englobe le modèle.
 
-Since we now have the input and output schemas defined for the model,
-we'll be able to create the class that wraps around the model.
-
-To start, we'll define the class and add all of the required properties:
+Pour commencer, nous allons définir la classe et ajouter toutes les propriétés nécessaires :
 
 ```python
 class InsuranceChargesModel(MLModel):
@@ -877,11 +744,10 @@ class InsuranceChargesModel(MLModel):
         return InsuranceChargesModelOutput
 ```
 
-The properties are required by the MLModel base class and they are used
-to easily access metadata about the model. The input and output schema
-classes are returned from the input_schema and output_schema properties.
 
-The \_\_init\_\_ method of the class looks like this:
+Les propriétés sont requises par la classe de base MLModel et sont utilisées pour accéder facilement aux métadonnées sur le modèle. Les classes de schéma d'entrée et de sortie sont renvoyées à partir des propriétés input_schema et output_schema.
+
+La méthode \_\_init\_\_ de la classe ressemble à ceci :
 
 ```python
 def __init__(self):
@@ -891,12 +757,9 @@ def __init__(self):
         self._svm_model = joblib.load(file)
 ```
 
-The init method is used to load the model parameters from disk and store
-the model object as an object attribute. The model object will be used
-to make predictions. Once the init method completes, the model object
-should be initialized and ready to make predictions.
+La méthode init est utilisée pour charger les paramètres du modèle depuis le disque et stocker l'objet modèle en tant qu'attribut d'objet. L'objet modèle sera utilisé pour faire des prédictions. Une fois que la méthode init est terminée, l'objet modèle devrait être initialisé et prêt à faire des prédictions.
 
-The prediction method of the model class looks like this:
+La méthode de prédiction de la classe du modèle ressemble à ceci :
 
 ```python
 def predict(self, data: InsuranceChargesModelInput) -> InsuranceChargesModelOutput:
@@ -908,154 +771,116 @@ def predict(self, data: InsuranceChargesModelInput) -> InsuranceChargesModelOutp
     return InsuranceChargesModelOutput(charges=y_hat)
 
 ```
+La méthode predict accepte un objet de type InsuranceChargesModelInput et renvoie un objet de type InsuranceChargesModelOutput. Tout d'abord, la méthode convertit les données entrantes en un dataframe pandas, puis le dataframe est utilisé pour faire une prédiction, et le résultat est converti en un nombre à virgule flottante et arrondi à deux décimales. Enfin, l'objet de sortie est créé en utilisant la prédiction et renvoyé à l'appelant.
 
-The predict method accepts an object of type InsuranceChargesModelInput
-and returns an object of type InsuranceChargesModelOutput. First, the
-method converts the incoming data into a pandas dataframe, then the
-dataframe is used to make a prediction, and the result is converted to a
-floating point number and rounded to two decimal places. Lastly, the
-output object is created using the prediction and returned to the
-caller.
+La classe du modèle est définie dans le module model.py, dans le package prediction.
 
-The model class is defined in the [model
-module](https://github.com/schmidtbri/regression-model/blob/master/insurance_charges_model/prediction/model.py)
-in the prediction package.
+# Ajout du décorateur de "Logging" à notre modèle
 
-# Creating a RESTful Service
+Nous devons, en premier lieu, télécharger le modèle de Logging depuis GitHub (https://github.com/schmidtbri/logging-for-ml-models). Le modèle inclut les fichiers filters et logging_decorator qui permettent d'effectuer le logging. Si vous désirez en savoir plus sur le logging, vous pouvez suivre le blog original de Brian Schmidt en anglais sur le sujet (https://www.tekhnoal.com/logging-for-ml-models)
 
-Now that we have a model class defined, we are finally able to build the
-RESTful service that will host the model when it is deployed. Luckily,
-we don't actually need to write any code for this because we'll be using
-the [rest_model_service package](https://pypi.org/project/rest-model-service/). If you'd
-like to learn more about the rest_model_service package, there is a
-[blog post]({filename}/articles/rest-model-service/blog_post.md)
-about it.
-
-To install the package, execute this command:
-
-```bash
-pip install rest_model_service
+Dans la section suivante, nous utiliserons Le package rest_model_service pour créer une API RESTful. Si ce n'est pas déjà fait, il est possible de télécharger le package comme suit:
 ```
+pip install rest_model_service>=0.3.0
+```
+Le package rest_model_service est capable d'héberger des modèles d'apprentissage automatique et de créer une API RESTful pour chaque modèle individuel. Nous n'avons pas besoin d'écrire de code pour cela, car le service peut décorer les modèles qu'il héberge avec les décorateurs que nous fournissons. Vous pouvez en savoir plus sur le package dans cet article de blog. Vous pouvez apprendre comment le package rest_model_service peut être configuré pour ajouter des décorateurs à un modèle dans cet article de blog. 
 
-To create a service for our model, all that is needed is that we add a
-YAML configuration file to the project. The [configuration
-file](https://github.com/schmidtbri/regression-model/blob/master/rest_config.yaml)
-looks like this:
+Voici un exemple de fonctionnement de "Log" :
+```
+{"asctime": "2023-11-13 13:44:37,243", "node_ip": "123.123.123.123", "name": "rest_model_service.helpers", "levelname": "INFO", "message": "Created endpoint for insurance_charges_model model."}
+```
+Les "Logs" du logging package incluent systématiquement l'heure (asctime), le "node_ip" (qui sera utile plus tard lors du déploiement) et le nom du niveau du log (INFO par exemple) et un message.
 
-```yaml
+Le décorateur ajoute également quelques champs au message de journalisation :
+
+-   action : l'action que le modèle effectue, dans ce cas "prédiction"
+-   model_qualified_name : le nom qualifié du modèle effectuant l'action
+-   model_version : la version du modèle effectuant l'action
+-   status : le résultat de l'action, pouvant être soit "succès" soit "erreur"
+-   error_info : un champ facultatif qui ajoute des informations d'erreur lorsqu'une exception est levée
+
+Afin d`intégrer ces logs à notre modèle, il suffit d'ajouter le fichier rest_configuration.yaml au répertoire "configuration" de notre package. Le voici:
+
+```Bash
 service_title: Insurance Charges Model Service
 models:
-  - qualified_name: insurance_charges_model
-    class_path: insurance_charges_model.prediction.model.InsuranceChargesModel
+  - class_path: insurance_charges_model.prediction.model.InsuranceChargesModel
     create_endpoint: true
+    decorators:
+      - class_path: ml_model_logging.logging_decorator.LoggingDecorator
+        configuration:
+          input_fields: ["age", "sex", "bmi", "children", "smoker", "region"]
+          output_fields: ["charges"]
+logging:
+    version: 1
+    disable_existing_loggers: false
+    formatters:
+      json_formatter:
+        class: pythonjsonlogger.jsonlogger.JsonFormatter
+        format: "%(asctime)s %(node_ip)s %(name)s %(levelname)s %(message)s"
+    filters:
+      environment_info_filter:
+        "()": ml_model_logging.filters.EnvironmentInfoFilter
+        env_variables:
+        - NODE_IP
+    handlers:
+      stdout:
+        level: INFO
+        class: logging.StreamHandler
+        stream: ext://sys.stdout
+        formatter: json_formatter
+        filters:
+        - environment_info_filter
+    loggers:
+      root:
+        level: INFO
+        handlers:
+        - stdout
+        propagate: true
 ```
 
-The service title is the name we'll give the service in the
-documentation. The models array contains references to the models that
-we'd like to host within the service. Each model needs to have the
-qualified name of the model along with the class path to the model's
-MLModel class. The create_endpoint option is set to true to tell the
-service to create an endpoint for the model.
-
-Using the configuration file, we're able to create an OpenAPI
-specification file for the model service by executing this command:
+En utilisant le fichier de configuration, nous sommes en mesure de créer un fichier de spécification OpenAPI pour le service modèle en exécutant cette commande :
 
 ```bash
 export PYTHONPATH=./
 generate_openapi \--output_file=service_contract.yaml
 ```
 
-The
-[service_contract.yaml](https://github.com/schmidtbri/regression-model/blob/master/service_contract.yaml)
-file will be generated and it will contain the specification that was
-generated for the model service. The
-[insurance_charges_model](https://github.com/schmidtbri/regression-model/blob/master/service_contract.yaml#L183-L218)
-endpoint is the one we'll call to make predictions with the model. The
-model's [input and output
-schemas](https://github.com/schmidtbri/regression-model/blob/master/service_contract.yaml#L183-L218)
-were automatically extracted and added to the specification.
+# Création d'un service RESTful
 
-To run the service locally, execute these commands:
+Maintenant que nous avons une classe de modèle définie et le logging d'inclus, nous sommes enfin en mesure de construire le service RESTful qui hébergera le modèle lorsqu'il sera déployé. Heureusement, nous n'avons en fait besoin d'écrire aucun code pour cela car nous utiliserons le [package rest_model_service](https://pypi.org/project/rest-model-service/). Si vous souhaitez en savoir plus sur le package rest_model_service, Brian Schmidt a un [article de blog](https://schmidtbri.github.io/rest-model-service/articles/basic_usage/basic_usage.html) à ce sujet.
+
+Le fichier service_contract.yaml sera généré et il contiendra la spécification qui a été générée pour le service modèle. Le point de terminaison insurance_charges_model est celui que nous appellerons pour faire des prédictions avec le modèle. Les schémas d'entrée et de sortie du modèle ont été automatiquement extraits et ajoutés à la spécification.
+
+Pour exécuter le service localement, exécutez ces commandes :
 
 ```bash
-uvicorn rest_model_service.main:app \--reload
+export NODE_IP=123.123.123.123
+export PYTHONPATH=./
+export REST_CONFIG=./configuration/rest_configuration.yaml
+uvicorn rest_model_service.main:app --reload
 ```
+La variable d'environnement NODE_IP est définie de sorte que la valeur puisse être ajoutée aux messages de journal via le filtre que nous avons construit ci-dessus. Le service devrait démarrer et peut être accessible dans un navigateur web à l'adresse [http://127.0.0.1:8000](http://127.0.0.1:8000). Lorsque vous accédez à cette URL, vous serez redirigé vers la page de documentation générée par le package FastAPI :
 
-The service should come up and can be accessed in a web browser at
-[http://127.0.0.1:8000](http://127.0.0.1:8000). When you access
-that URL you will be redirected to the documentation page that is
-generated by the FastAPI package:
+![Service Documentation](https://www.tekhnoal.com/service_documentation_lfmlm.png)
+La documentation vous permet de faire des requêtes contre l'API afin de l'essayer. Voici une requête de prédiction pour le modèle des frais d'assurance :
 
-![Documentation Page]({attach}8.png){ width=100% }
+![Prediction Request](https://www.tekhnoal.com/prediction_request_lfmlm.png)
 
-The documentation allows you to make requests against the API in order
-to try it out. Here's a prediction request against the insurance charges
-model:
+Le résultat:
 
-![Request]({attach}9.png){ width=100% }
+![Prediction Response](https://www.tekhnoal.com/prediction_response_lfmlm.png)
+La prédiction effectuée par le modèle a dû passer par le décorateur de journalisation que nous avons configuré dans le service, nous avons donc obtenu ces deux enregistrements de journal du processus :
 
-And the prediction result:
+![Prediction Log](https://www.tekhnoal.com/prediction_log_lfmlm.png)
+Le processus du service web local émet les journaux vers stdout, exactement comme nous l'avons configuré.
 
-![Prediction Result]({attach}10.png){ width=100% }
+Nous pouvons maintenant effectuer des prédictions via la méthode "POST", via l'interface utilisateur de notre fureteur ou avec une commande curl. 
 
-By using the MLModel base class provided by the ml_base package and the
-REST service framework provided by the rest_model_service package we're
-able to quickly stand up a service to host the model.
-
-# Deploying the Model
-
-Now that we have a working model and model service, we'll need to deploy
-it somewhere. To do this, we'll use docker and kubernetes.
-
-## Creating a Docker Image
-
-Before moving forward, let's create a docker image and run it locally.
-The docker image is generated using instructions in the
-[Dockerfile](https://github.com/schmidtbri/regression-model/blob/master/Dockerfile):
-
-```dockerfile
-FROM tiangolo/uvicorn-gunicorn-fastapi:python3.7
-
-MAINTAINER Brian Schmidt
-"6666331+schmidtbri@users.noreply.github.com"
-
-WORKDIR ./service
-
-COPY ./insurance_charges_model ./insurance_charges_model
-COPY ./rest_config.yaml ./rest_config.yaml
-COPY ./service_requirements.txt ./service_requirements.txt
-
-RUN pip install -r service_requirements.txt
-
-ENV APP_MODULE=rest_model_service.main:app
+Dans un nouveau terminal, on soumet la commande suivante: 
 ```
-
-The Dockerfile is used by this command to create the docker image:
-
-```bash
-docker build -t insurance_charges_model:0.1.0 .
-```
-
-To make sure everything worked as expected, we'll look through the
-docker images in our system:
-
-```bash
-docker image ls
-```
-
-The insurance_charges_model image should be listed. Next, we'll start
-the image to see if everything is working as expected:
-
-```bash
-docker run -d -p 80:80 insurance_charges_model:0.1.0
-```
-
-The service should be accessible on port 80 of localhost, so we'll try
-to make a prediction using the curl command:
-
-```bash
 curl -X 'POST' \
-'http://localhost/api/models/insurance_charges_model/prediction' \
+'http://localhost:8000/api/models/insurance_charges_model/prediction' \
 -H 'accept: application/json' \
 -H 'Content-Type: application/json' \
 -d '{
@@ -1066,197 +891,231 @@ curl -X 'POST' \
 "smoker": true,
 "region": "southwest"
 }'
-```
-
-We got back this output, which tells us that the service is working as
-expected:
 
 ```
-{"charges":46918.68}
+Ce qui devrait retourner : 
+```
+{"charges":46737.29}
+```
+Il est à noter que dépendamment de l'entraînement fait, la prédiction "charges" est sujette à varier. Elle devrait cependant être très proche de la valeure ci-haut. 
+
+D'un autre côté, dans notre terminal original, on peut voir les "Logs" de notre modèle:
+```
+INFO:     127.0.0.1:50374 - "GET / HTTP/1.1" 307 Temporary Redirect
+INFO:     127.0.0.1:50374 - "GET /docs HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50374 - "GET /openapi.json HTTP/1.1" 200 OK
+{"asctime": "2023-11-13 14:22:36,382", "node_ip": "123.123.123.123", "name": "insurance_charges_model_logger", "levelname": "INFO", "message": "Prediction requested.", "action": "predict", "model_qualified_name": "insurance_charges_model", "model_version": "0.1.0", "age": 65, "sex": "male", "bmi": 50.0, "children": 5, "smoker": true, "region": "southwest"}
+/home/nicolas/.local/lib/python3.10/site-packages/featuretools/entityset/entityset.py:1910: UserWarning: index index not found in dataframe, creating new integer column
+  warnings.warn(
+{"asctime": "2023-11-13 14:22:36,444", "node_ip": "123.123.123.123", "name": "insurance_charges_model_logger", "levelname": "INFO", "message": "Prediction created.", "action": "predict", "model_qualified_name": "insurance_charges_model", "model_version": "0.1.0", "status": "success", "charges": 46737.29}
+INFO:     127.0.0.1:59350 - "POST /api/models/insurance_charges_model/prediction HTTP/1.1" 200 OK
 ```
 
-If there are any problems, we should be able to debug them using the
-logs. To see the logs emitted by the running container, execute this
-command:
+# Déploiement du service
 
-```bash
-docker logs $(docker ps -lq)
+Maintenant que nous avons un service fonctionnel qui s'exécute localement, nous pouvons travailler sur son déploiement sur Docker/Kubernetes.
+
+## Création d'une image Docker
+
+Kubernetes doit disposer d'une image Docker pour déployer quelque chose, nous allons construire une image en utilisant le Dockerfile suivant :
+
+```dockerfile
+# Stage 1: Build Stage
+FROM tiangolo/uvicorn-gunicorn-fastapi:python3.10 as base
+
+# Creating and activating a virtual environment
+ENV VIRTUAL_ENV=/opt/venv
+RUN python3 -m venv $VIRTUAL_ENV
+ENV PATH="$VIRTUAL_ENV/bin:$PATH"
+
+# Installing dependencies
+COPY ./service_requirements.txt ./service_requirements.txt
+RUN pip install --no-cache -r service_requirements.txt
+
+
+
+# Stage 2: Runtime Stage
+FROM base as runtime
+
+ARG DATE_CREATED
+ARG REVISION
+ARG VERSION
+
+LABEL org.opencontainers.image.title="Logging for ML Models"
+LABEL org.opencontainers.image.description="Logging for machine learning models."
+LABEL org.opencontainers.image.created=$DATE_CREATED
+LABEL org.opencontainers.image.authors="6666331+schmidtbri@users.noreply.github.com"
+LABEL org.opencontainers.image.source="https://github.com/NicolasRichard1997/Insurance_Charges_Model"
+LABEL org.opencontainers.image.version=$VERSION
+LABEL org.opencontainers.image.revision=$REVISION
+LABEL org.opencontainers.image.licenses="MIT License"
+LABEL org.opencontainers.image.base.name="tiangolo/uvicorn-gunicorn-fastapi:python3.10"
+
+WORKDIR /service
+
+# Copy necessary files
+COPY ./insurance_charges_model ./insurance_charges_model
+COPY ./rest_configuration.yaml ./rest_configuration.yaml
+COPY ./service_requirements.txt ./service_requirements.txt
+COPY ./kubernetes_rest_config.yaml ./kubernetes_rest_config.yaml
+COPY ./configuration ./configuration
+
+# Install any dependencies
+RUN pip install -r service_requirements.txt
+
+# Expose the port your application runs on
+EXPOSE 8000
+
+# Install packages
+RUN apt-get update -y && \
+    apt-get install -y --no-install-recommends libgomp1 && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
+
+COPY --from=base /opt/venv ./venv
+
+COPY ./ml_model_logging ./ml_model_logging
+COPY ./LICENSE ./LICENSE
+
+ENV PATH /service/venv/bin:$PATH
+ENV PYTHONPATH="${PYTHONPATH}:/service"
+
+WORKDIR /service
+
+CMD ["uvicorn", "rest_model_service.main:app", "--host", "0.0.0.0", "--port", "8000"]
 ```
 
-To stop the docker container, execute this command:
+Maintenant, nous pouvons utiliser les valeurs pour construire l'image. Nous fournirons également la version en tant qu'argument de construction (build argument).
 
-```bash
-docker kill $(docker ps -lq)
+```python
+docker build \
+  --build-arg DATE_CREATED="$DATE_CREATED" \
+  --build-arg VERSION="0.1.0" \
+  --build-arg REVISION="$REVISION" \
+  -t insurance_charges_model_service:0.1.0 ..\
+```
+Pour trouver l'image que nous venons de construire, nous allons rechercher parmi les images Docker locales :
+
+```python
+docker images ls
+```
+Par exemple, on retrouve l'image ainsi:
 ```
 
-## Setting up Digital Ocean
+REPOSITORY                        TAG       IMAGE ID       CREATED        SIZE
+insurance_charges_model_service   0.1.0     59628036f039   23 hours ago   7.65GB
+insurance_charges_model           0.1.0     8f8acb2943d6   4 days ago     4.9GB
+gcr.io/k8s-minikube/kicbase       v0.0.42   dbc648475405   6 days ago     1.2GB
+```
+Maintenant, on peut démarrer un container avec cette image:
 
-To show how to deploy the model service we created, we'll use [Digital
-Ocean](https://www.digitalocean.com/). In this section we'll be
-using the doctl command line utility which will help us to interact with
-the Digital Ocean Kubernetes service. We followed [these
-instructions](https://docs.digitalocean.com/reference/doctl/how-to/install/)
-to install the doctl utility. Before we can do anything with the Digital
-Ocean API, we need to authenticate, so we created an API token by
-following these instructions. Once we have the token we can add it to
-the doctl utility by creating a new authentication context with this
-command:
+```python
+docker run -d \
+    -p 8000:8000 \
+    -e REST_CONFIG=./configuration/rest_configuration.yaml \
+    -e NODE_IP="123.123.123.123" \
+    --name insurance_charges_docker \
+    insurance_charges_model_service:0.1.0
+```
+Remarquez que nous avons ajouté une variable d'environnement appelée NODE_IP, c'est simplement pour avoir une valeur à extraire ultérieurement dans les journaux, ce n'est pas l'adresse IP réelle du nœud.
 
-```bash
-doctl auth init \--context model-services-context
+Le service est opérationnel dans le conteneur Docker. Pour afficher les "logs" émis par le processus, nous utiliserons la commande docker logs :
+
+```python
+docker logs insurance_charges_docker
+```
+```
+{"asctime": "2023-11-13 19:33:11,253", "node_ip": "123.123.123.123", "name": "rest_model_service.helpers", "levelname": "INFO", "message": "Creating FastAPI app for: 'Insurance Charges Model Service'."}
+INFO:     Started server process [1]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
+Loading model from /service/insurance_charges_model/training/model.joblib
+{"asctime": "2023-11-13 19:33:15,329", "node_ip": "123.123.123.123", "name": "rest_model_service.helpers", "levelname": "INFO", "message": "Loaded insurance_charges_model model."}
+{"asctime": "2023-11-13 19:33:15,329", "node_ip": "123.123.123.123", "name": "rest_model_service.helpers", "levelname": "INFO", "message": "Added LoggingDecorator decorator to insurance_charges_model model."}
+{"asctime": "2023-11-13 19:33:15,332", "node_ip": "123.123.123.123", "name": "rest_model_service.helpers", "levelname": "INFO", "message": "Created endpoint for insurance_charges_model model."}
+INFO:     172.17.0.1:61206 - "GET / HTTP/1.1" 307 Temporary Redirect
+INFO:     172.17.0.1:61206 - "GET /docs HTTP/1.1" 200 OK
+INFO:     172.17.0.1:61206 - "GET /openapi.json HTTP/1.1" 200 OK
 ```
 
-The command creates a new context called "model-services-context" that
-we'll use to interact with the Digital Ocean API. The command asks for
-the API token we generated and saves it into the configuration file of
-the tool. To make sure that the context was created correctly and is the
-current context, execute this command:
+Comme prévu, les logs sont affichés au format JSON, bien qu'il y en ait certains qui ne le sont pas. Ces logs sont émis par des objets de logging qui ont été initialisés avant que le package rest_model_service n'ait eu la chance d'être initialisé.
 
-```bash
-doctl auth list
+Le service devrait être accessible sur le port 8000 de localhost, donc nous pouvons effectuer une prédiction avec la même commande curl que ci-haut. Le résultat obtenu 
+
+On peut stopper et supprimer le conteneur. 
+
+## Création d'un cluster Kubernetes
+
+Pour montrer le système en action, nous allons déployer le service sur un cluster Kubernetes. Un cluster local peut être facilement démarré en utilisant [minikube](https://minikube.sigs.k8s.io/docs/). Les instructions d'installation peuvent être trouvées [ici](https://minikube.sigs.k8s.io/docs/start/).
+
+Pour démarrer le cluster minikube, exécutez cette commande :
+
+
+```python
+minikube start
 ```
-
-If the context we created is not the current context, we can switch to
-it with this command:
-
-```bash
-doctl auth switch \--context model-services-context
 ```
-
-To make sure that we are working in the right account, execute this
-command:
-
-```bash
-doctl account get
+😄  minikube v1.32.0 on Debian bookworm/sid
+✨  Using the docker driver based on existing profile
+👍  Starting control plane node minikube in cluster minikube
+🚜  Pulling base image ...
+🏃  Updating the running docker "minikube" container ...
+🐳  Preparing Kubernetes v1.28.3 on Docker 24.0.7 ...
+🔎  Verifying Kubernetes components...
+    ▪ Using image gcr.io/k8s-minikube/storage-provisioner:v5
+🌟  Enabled addons: storage-provisioner, default-storageclass
+🏄  Done! kubectl is now configured to use "minikube" cluster and "default" namespace by default
 ```
+Affichons tous les pods en cours d'exécution dans le cluster minikube pour nous assurer que nous pouvons nous y connecter en utilisant la commande kubectl.
 
-The account details should match the account that you used to login. Now
-that we are connecting to the right account in DO, we'll work on
-uploading the docker image that contains the model service so that we
-can use it in the Kubernetes cluster. First, we'll create a container
-registry with this command:
-
-```bash
-doctl registry create model-services-registry \--subscription-tier basic
+```python
+kubectl get pods -A
 ```
-
-We called the new registry "model-services-registry" and we used the
-basic tier, which costs \$5 a month.
-
-### Pushing the Image
-
-Now that we have a registry, we need to add credentials to our local
-docker daemon in order to be able to upload images, to do that we'll use
-this command:
-
-```bash
-doctl registry login
 ```
-
-In order to upload the image, we need to tag it with the URL of the DO
-registry we created. The docker tag command looks like this:
-
-```bash
-docker tag insurance_charges_model:0.1.0
-registry.digitalocean.com/model-services-registry/insurance_charges_model:0.1.0
+NAMESPACE        NAME                                                  READY   STATUS             RESTARTS       AGE
+default          insurance-charges-model-deployment-7dd4fc997b-2pp7x   0/1     ImagePullBackOff   0              42h
+kube-system      coredns-5dd5756b68-6kdqt                              1/1     Running            7 (106s ago)   43h
+kube-system      etcd-minikube                                         1/1     Running            3 (111s ago)   24h
+kube-system      kube-apiserver-minikube                               1/1     Running            3 (101s ago)   24h
+kube-system      kube-controller-manager-minikube                      1/1     Running            5 (111s ago)   43h
+kube-system      kube-proxy-4gmz5                                      1/1     Running            5 (111s ago)   43h
+kube-system      kube-scheduler-minikube                               1/1     Running            5 (111s ago)   43h
+kube-system      storage-provisioner                                   1/1     Running            11 (97s ago)   43h
 ```
+On dirait que nous pouvons nous connecter, nous sommes prêts à commencer le déploiement du service modèle sur le cluster.
 
-Now we can push the image to the DO registry:
+### Création d'un namespace
 
-```bash
-docker push registry.digitalocean.com/model-services-registry/insurance_charges_model:0.1.0
+Maintenant que nous avons un cluster et que nous y sommes connectés, nous allons créer un espace de noms pour contenir les ressources de notre déploiement de modèle. La définition de la ressource se trouve dans le fichier kubernetes/namespace.yaml. Pour appliquer le manifeste au cluster, exécutez cette commande :
+
+```python
+kubectl create -f kubernetes/namespace.yaml
 ```
-
-### Creating the Kubernetes Cluster
-
-The doctl tool provides an option for creating a Kubernetes cluster, the
-command goes like this:
-
-```bash
-doctl kubernetes cluster create model-services-cluster
 ```
-
-The cluster should come up after a while. The default cluster size is 3
-nodes which should cost about \$30 to run for a month. We'll shut the
-cluster down later to save money.
-
-Next, we need to add Kubernetes integration with Digital Ocean's docker
-registry, this allows the kubernetes cluster to pull images from the
-docker registry we created above. To do this execute this command:
-
-```bash
-doctl kubernetes cluster registry add model-services-cluster
+    namespace/model-services created
 ```
-
-To access the cluster, doctl has another option that will set up the
-kubectl tool for us:
-
-```bash
-doctl kubernetes cluster kubeconfig save 85866655-708d-47a9-8797-bcca56a10401
-```
-
-The unique identifier is for the cluster that was just created and is
-returned by the previous command. When the command finishes, the current
-context in kubectl should be switched to the newly created cluster. To
-list the contexts in kubectl, execute this command:
-
-```bash
-kubectl config get-contexts
-```
-
-A listing of the contexts currently in the kubectl configuration should
-appear, and there should be a star next to the new cluster's context. We
-can get a list of the nodes in the cluster with this command:
-
-```bash
-kubectl get nodes
-```
-
-Now that we have a cluster and are connected to it, we'll create a
-namespace to hold the resources for our model deployment. We'll create a
-namespace using this YAML manifest:
-
-```yaml
-apiVersion: v1
-  kind: Namespace
-  metadata:
-  name: model-services-namespace
-```
-
-The manifest can be found in [this
-file](https://github.com/schmidtbri/regression-model/blob/master/kubernetes/namespace.yml).
-To apply the manifest to the cluster, execute this command:
-
-```bash
-kubectl create -f kubernetes/namespace.yml
-```
-
-To take a look at the namespaces, execute this command:
-
-```bash
+Pour examiner les espaces de noms, exécutez cette commande :
+```python
 kubectl get namespace
 ```
-
-The new namespace should appear in the listing along with other
-namespaces created by default by the system. To use the new 
-namespace for the rest of the operations, execute this command:
-
 ```
-kubectl config set-context --current --namespace=model-services-namespace
+NAME              STATUS   AGE
+default           Active   43h
+kube-node-lease   Active   43h
+kube-public       Active   43h
+kube-system       Active   43h
+model-services    Active   6h18
 ```
+### La création du "service modèle"
 
-## Creating a Kubernetes Deployment
+Le "service modèle" est déployé en utilisant des ressources Kubernetes. Il s'agit de :
 
-We are now ready to actually create a deployment in the cluster. A
-deployment is a resource created within the Kubernetes cluster that
-provides declarative updates to individual pods and ReplicaSets. A pod
-represents a single instance of the web service that is hosting our
-model. We'll use a Deployment to launch two instances of the service in
-the cluster. The Deployment will manage the state of the Pods that hold
-the service instances and make sure that the desired state is always
-maintained in the cluster.
+-   ConfigMap : un ensemble d'options de configuration, dans ce cas, c'est un fichier YAML simple qui sera chargé dans le conteneur en cours d'exécution en tant que montage de volume. Cette ressource nous permet de modifier la configuration du service modèle sans avoir à modifier l'image Docker.
+-   Deployment : une manière déclarative de gérer un ensemble de Pods, les pods du service modèle sont gérés via le Deployment.
+-   Service : une manière d'exposer un ensemble de Pods dans un Deployment, le service modèle est rendu disponible à l'extérieur grâce au Service.
 
-The Deployment is defined as YAML like this:
+Ces ressources sont définies dans le fichier kubernetes/model_service.yaml. Voici son contenu: 
 
 ```yaml
 apiVersion: apps/v1
@@ -1264,199 +1123,210 @@ kind: Deployment
 metadata:
   name: insurance-charges-model-deployment
   labels:
-    app: insurance-charges-model
+    app: insurance-charges-model-service
+    app.kubernetes.io/name: insurance-charges-model-service
+    app.kubernetes.io/version: "0.1.0"
+    app.kubernetes.io/component: model-service
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: insurance-charges-model
+      app: insurance-charges-model-service
   template:
     metadata:
       labels:
-        app: insurance-charges-model
+        app: insurance-charges-model-service
     spec:
       containers:
         - name: insurance-charges-model
-          image: registry.digitalocean.com/model-services-registry/insurance_charges_model:0.1.0
+          image: insurance_charges_model_service:0.1.0
           ports:
-          - containerPort: 80
+          - containerPort: 8000
             protocol: TCP
-          imagePullPolicy: Always
+          imagePullPolicy: Never
+          livenessProbe:
+            httpGet:
+              scheme: HTTP
+              path: /api/health
+              port: 8000
+            initialDelaySeconds: 0
+            periodSeconds: 10
+            timeoutSeconds: 2
+            failureThreshold: 5
+            successThreshold: 1
+          readinessProbe:
+            httpGet:
+              scheme: HTTP
+              path: /api/health/ready
+              port: 8000
+            initialDelaySeconds: 0
+            periodSeconds: 10
+            timeoutSeconds: 2
+            failureThreshold: 5
+            successThreshold: 1
+          startupProbe:
+            httpGet:
+              scheme: HTTP
+              path: /api/health/startup
+              port: 8000
+            initialDelaySeconds: 2
+            periodSeconds: 5
+            timeoutSeconds: 2
+            failureThreshold: 5
+            successThreshold: 1
           resources:
             requests:
-              cpu: "250m"
-```
-
-The file containing the YAML is
-[here](https://github.com/schmidtbri/regression-model/blob/master/kubernetes/deployment.yml).
-The deployment specifies that there should be two replicas of the docker
-image running in the cluster. The "app=insurance-charges-model" is
-applied to the two Pods and is used to select them later.
-
-The Deployment is created within the Kubernetes cluster with this
-command:
-
-```bash
-kubectl apply -f kubernetes/deployment.yml
-```
-
-Once the command finishes we can see the new deployment with this
-command:
-
-```bash
-kubectl get deployments
-```
-
-We can view the pods that are being managed by the deployment with this
-command:
-
-```bash
-kubectl get pods
-```
-
-The output should look something like this:
-
-```
-NAME    READY   STATUS  RESTARTS    AGE
-insurance-charges-model-deployment-7d58f6d569-zwjpw 1/1 Running 0 3m48s
-```
-
-## Creating a Kubernetes Service
-
-Now that we have a set of pods, we need to make them accessible to the
-outside world. The Service resource within Kubernetes is used to select
-a set of Pods and allow access to them through a single entry point. The
-Service allows us to decouple the Pods and Deployment resources that
-make up our REST service from the way that they are exposed to users.
-
-The Service is defined as YAML like this:
-
-```yaml
+              cpu: "100m"
+              memory: "250Mi"
+            limits:
+              cpu: "200m"
+              memory: "250Mi"
+          env:
+            - name: REST_CONFIG
+              value: rest_config.yaml
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: NODE_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
+            - name: APP_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.labels['app']
+          volumeMounts:
+            - name: config-volume
+              mountPath: /service/configuration
+      volumes:
+        - name: config-volume
+          configMap:
+            name: model-service-configuration
+            items:
+              - key: rest_config.yaml
+                path: rest_config.yaml
+---
 apiVersion: v1
 kind: Service
 metadata:
   name: insurance-charges-model-service
+  labels:
+    app.kubernetes.io/name: insurance-charges-model-service
+    app.kubernetes.io/version: "0.1.0"
+    app.kubernetes.io/component: model-service
 spec:
-  type: LoadBalancer
+  type: NodePort
   selector:
-    app: insurance-charges-model
+    app: insurance-charges-model-service
   ports:
     - name: http
       protocol: TCP
-      port: 80
-      targetPort: 80
+      port: 8000
+      targetPort: 8000
 ```
 
-The YAML file is
-[here](https://github.com/schmidtbri/regression-model/blob/master/kubernetes/deployment.yml).
-The Service is selecting the same Pods that are managed by the
-Deployment resource which we created above by using the same selector.
 
-The Service is created within the Kubernetes cluster with this command:
+La définition du pod utilise la [API descendante fournie par Kubernetes](https://kubernetes.io/docs/tasks/inject-data-application/downward-api-volume-expose-pod-information/) pour accéder au nom du nœud, au nom du pod et au contenu de l'étiquette 'app'. Ces informations sont mises à disposition sous forme de variables d'environnement. Nous ajouterons ces informations au journal en ajoutant les noms des variables d'environnement à la configuration du journal que nous fournirons au service modèle. Nous avons construit une classe de contexte de journalisation ci-dessus dans le but d'ajouter des variables d'environnement aux enregistrements de journal.
+
+Nous sommes presque prêts à déployer le service modèle, mais avant de le lancer, nous devrons envoyer l'image Docker du démon local Docker vers le cache d'images de minikube :
+
+
+```python
+minikube image load insurance_charges_model_service:0.1.0
+```
+Le chargement prend un moment. La commande suivante confirme que l'image docker a bien été chargée :
+```python
+minikube image ls
+```
+```
+registry.k8s.io/pause:3.9
+registry.k8s.io/kube-scheduler:v1.28.3
+registry.k8s.io/kube-proxy:v1.28.3
+registry.k8s.io/kube-controller-manager:v1.28.3
+registry.k8s.io/kube-apiserver:v1.28.3
+registry.k8s.io/etcd:3.5.9-0
+registry.k8s.io/coredns/coredns:v1.10.1
+gcr.io/k8s-minikube/storage-provisioner:v5
+docker.io/library/insurance_charges_model_service:0.1.
+```
+On retrouve notre image à la dernière ligne.
+
+Le service modèle devra accéder au fichier de configuration YAML que nous avons utilisé pour le service local ci-dessus. Ce fichier se trouve dans le dossier /configuration et s'appelle "kubernetes_rest_config.yaml", il est personnalisé pour l'environnement Kubernetes que nous sommes en train de construire.
+
+Pour créer un [ConfigMap](https://kubernetes.io/docs/concepts/configuration/configmap/) pour le service, exécutez cette commande :
+
+
+```python
+kubectl create configmap model-service-configuration -n model-services --from-file=./configuration/kubernetes_rest_config.yaml
+```
+```
+    configmap/model-service-configuration created
+```
+
+Le service est déployé sur le cluster Kubernetes avec cette commande :
+
+```python
+kubectl apply -n model-services -f ./kubernetes/model_service.yaml
+```
+```
+    deployment.apps/credit-risk-model-deployment created
+    service/credit-risk-model-service created
+```
+
+Le déploiement et le service pour le service modèle ont été créés simultanément. Voyons le déploiement pour vérifier s'il est déjà disponible :
+
+```python
+kubectl get deployments -n model-services 
+```
+```
+NAME                                 READY   UP-TO-DATE   AVAILABLE   AGE
+insurance-charges-model-deployment   1/1     1            1           5h57m
+```
+Vous pouvez également afficher les pods qui exécutent le service :
+
+```python
+kubectl get pods -n model-services -l app=insurance-charges-model-service
+```
+```
+RESTARTS      AGE
+insurance-charges-model-deployment-77b7d76c85-77p45   1/1     Running   3 (15m ago)   5h58m
+```
+
+The Kubernetes Service details look like this:
+
+
+```python
+kubectl get services -n model-services 
+```
+```
+NAME                              TYPE       CLUSTER-IP       EXTERNAL-IP   PORT(S)          AGE
+insurance-charges-model-service   NodePort   10.103.161.252   <none>        8000:32391/TCP   5h59m
+```
+Nous allons exécuter un processus proxy localement pour pouvoir accéder à l'extrémité du service modèle :
 
 ```bash
-kubectl apply -f kubernetes/service.yml
+minikube service insurance-charges-model-service --url -n model-services
 ```
-
-You can see the new service with this command:
-
-```bash
-kubectl get services
-```
-
-The Service type is LoadBalancer, which means that the cloud provider is
-providing a load balancer and public IP address through which we can
-contact the service. To view details about the load balancer provided by
-Digital Ocean for this Service, we'll execute this command:
-
-```bash
-kubectl describe service insurance-charges-model-service | grep "LoadBalancer Ingress"
-```
-
-The load balancer can take a while longer than the service to come up,
-until the load balancer is running the command won't return anything.
-The IP address that the Digital Ocean load balancer sits behind will be
-listed in the output of the command. To get access to the service, we'll
-hit the IP address with a web browser:
-
-![Prediction Result]({attach}11.png){ width=100% }
-
-We can access the service documentation through the load balancer and
-the Pod that is running the REST service is returning the webpage.
-
-We'll try the same curl command as before to see if the model is
-reachable:
-
-```bash
-curl -X 'POST' 'http://143.244.214.226/api/models/insurance_charges_model/prediction' \
--H 'accept: application/json' \
--H 'Content-Type: application/json' \
--d '{
-"age": 65,
-"sex": "male",
-"bmi": 50,
-"children": 5,
-"smoker": true,
-"region": "southwest"
-}'
-```
-
-A prediction was returned from the model:
+Voici le résulat:
 
 ```
-{"charges":46277.67}
+minikube service insurance-charges-model-service --url -n model-services
+http://127.0.0.1:34659
+❗  Because you are using a Docker driver on linux, the terminal needs to be open to run it.
 ```
+Encore une fois on peut interargir avec le modèle avec un commande curl, comme ci-haut, à l'exception qu'on doive respecter l'adresse locale donnée par minikube (http://127.0.0.1:34659 dans le cas présent).
 
-# Deleting the Resources
+Le modèle est déployé sur Kubernetes !
 
-Now that we're done with the service we need to destroy the resources.
-To destroy the load balancer, execute this command:
+### Accéder aux Logs
 
-```bash
-doctl compute load-balancer delete \--force $(kubectl get svc insurance-charges-model-service -o jsonpath="{.metadata.annotations.kubernetes\.digitalocean\.com/load-balancer-id}")
+Kubernetes dispose d'un système intégré qui reçoit les sorties stdout et stderr des conteneurs en cours d'exécution et les enregistre sur le disque dur du nœud pendant une durée limitée. Vous pouvez consulter les logs émis par les conteneurs en utilisant cette commande :
+
+```python
+kubectl logs -n model-services insurance-charges-model-deployment-77b7d76c85-77p45 -c insurance-charges-model | grep "\"action\": \"predict\""
 ```
-
-To destroy the kubernetes cluster, execute this command:
-
-```bash
-doctl k8s cluster delete 85866655-708d-47a9-8797-bcca56a10401
 ```
-
-To destroy the docker registry, execute this command:
-
-```bash
-doctl registry delete model-services-registry
+{"asctime": "2023-11-13 20:03:51,360", "pod_name": "insurance-charges-model-deployment-77b7d76c85-77p45", "node_name": "minikube", "app_name": "insurance-charges-model-service", "name": "insurance_charges_model_logger", "levelname": "INFO", "message": "Prediction requested.", "action": "predict", "model_qualified_name": "insurance_charges_model", "model_version": "0.1.0", "age": 20, "sex": "male", "bmi": 15.0, "children": 0, "smoker": true, "region": "southwest"}
+{"asctime": "2023-11-13 20:03:52,241", "pod_name": "insurance-charges-model-deployment-77b7d76c85-77p45", "node_name": "minikube", "app_name": "insurance-charges-model-service", "name": "insurance_charges_model_logger", "levelname": "INFO", "message": "Prediction created.", "action": "predict", "model_qualified_name": "insurance_charges_model", "model_version": "0.1.0", "status": "success", "charges": 17751.17}
 ```
-
-# Closing
-
-This blog post was created as a demonstration of how to build and deploy
-machine learning models quickly and easily. Although I didn\'t do any
-deep explanations of how the different tools work, I made sure to link
-to other resources from which you can learn more about them. The
-techniques and packages used are all open source and can be easily
-downloaded and used in other projects.
-
-The dataset that we used happens to be useful for predicting insurance
-charges, but the code in this project can be used to train a model based
-on any regression data set because of the automated feature engineering
-and automated machine learning techniques that we used. We should be
-able to throw any dataset at the code and the automations that we built
-will enable us to quickly build a model and deploy a RESTful service
-with it.
-
-Something that we can improve on in the future is to create a Helm chart
-that we can use to deploy an ML model service quickly and easily. Since
-the Kubernetes resources for the model service are likely to be very
-similar to other model services, we should be able to create a Helm
-chart that we can reuse to quickly spin up model services that follow
-the same pattern as this one.
-
-Another thing that we can improve on is the automated generation of
-input and output schemas for the model. When we built the input and
-output schemas for the model, we had to manually extract the field
-information from the dataframes. By introspecting the dataframe
-metadata, we should be able to automatically generate the input and
-output schemas, which can be used to automatically generate the code in
-the schemas.py module. This is just one way in which we can further
-automate the deployment process of an ML model.

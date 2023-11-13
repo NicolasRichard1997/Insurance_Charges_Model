@@ -3,11 +3,6 @@ from enum import Enum
 import os
 import pyarrow  # Import PyArrow
 
-# Set the PYARROW_IGNORE_TIMEZONE environment variable
-os.environ['PYARROW_IGNORE_TIMEZONE'] = '1'
-
-
-
 
 class SexEnum(str, Enum):
     """Enumeration for the value of the 'sex' input of the model."""

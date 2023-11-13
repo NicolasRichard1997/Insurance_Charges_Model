@@ -423,6 +423,9 @@ pyparsing==3.0.7
     #   matplotlib
     #   packaging
     #   pydot
+pytest 7.2. 2
+    # via 
+    #   -r test_requirements.in
 python-dateutil==2.8.2
     # via
     #   -r test_requirements.in
