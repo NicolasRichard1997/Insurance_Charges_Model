@@ -1045,6 +1045,28 @@ Le service devrait être accessible sur le port 8000 de localhost, donc nous pou
 
 On peut stopper et supprimer le conteneur. 
 
+### Télécharger l'image sur DockerHub
+
+Il est possible, et en général une bonne pratique, de télécharger l'image que nolus venos de créer sur DockerHub
+
+Procédons comme suit:
+
+```
+docker login
+```
+suivez les instructions pour vous connecter. 
+
+On doit ensuite "tag" l'image que nous venons de créer, comme suit, en remplacant le nom d'utilisateur, le répertoire et le tag à votre guise. Dans mon cas:
+
+```
+docker tag insurance_charges_model_services:0.1.0 nicolasrichard1997/insurance_charges_model_service:0.1.0
+```
+ensuite:
+```
+docker push nicolasrichard1997/insurance_charges_model_service:0.1.0
+```
+Si tout va bien, l'image devrait être téléchargée sur DockerHub. Nous utiliserons cette image plus tard.
+
 ## Création d'un cluster Kubernetes
 
 Pour montrer le système en action, nous allons déployer le service sur un cluster Kubernetes. Un cluster local peut être facilement démarré en utilisant [minikube](https://minikube.sigs.k8s.io/docs/). Les instructions d'installation peuvent être trouvées [ici](https://minikube.sigs.k8s.io/docs/start/).
@@ -1069,12 +1091,40 @@ minikube start
 ```
 Affichons tous les pods en cours d'exécution dans le cluster minikube pour nous assurer que nous pouvons nous y connecter en utilisant la commande kubectl.
 
+
+
+Il est est possible de charger dans Minikube, l'image que nous avons créé précedemment à partir de DockerHub.
+
+On commence par:
+
+```
+minikube ssh
+```
+
+On procède ensuite à chargée l'image dans notgre cluster Minikube. Pour faire ceci:
+
+```
+docker pull nicolasrichard1997/insurance_charges_model_service:0.1.0
+```
+l'image devrait éventuellement télécharger. Avec la commande suivante, on peut vérifier si l'image est bien présente:
+
+```
+docker image ls
+```
+
+on quitte la session SSH avec la commande:
+```
+exit
+```
+
+
+De retour dans notre terminal initial:
+
 ```python
 kubectl get pods -A
 ```
 ```
 NAMESPACE        NAME                                                  READY   STATUS             RESTARTS       AGE
-default          insurance-charges-model-deployment-7dd4fc997b-2pp7x   0/1     ImagePullBackOff   0              42h
 kube-system      coredns-5dd5756b68-6kdqt                              1/1     Running            7 (106s ago)   43h
 kube-system      etcd-minikube                                         1/1     Running            3 (111s ago)   24h
 kube-system      kube-apiserver-minikube                               1/1     Running            3 (101s ago)   24h
@@ -1124,7 +1174,7 @@ metadata:
   name: insurance-charges-model-deployment
   labels:
     app: insurance-charges-model-service
-    app.kubernetes.io/name: insurance-charges-model-service
+    app.kubernetes.io/name: nicolasrichard1997/insurance-charges-model-service
     app.kubernetes.io/version: "0.1.0"
     app.kubernetes.io/component: model-service
 spec:
@@ -1232,10 +1282,8 @@ La définition du pod utilise la [API descendante fournie par Kubernetes](https:
 Nous sommes presque prêts à déployer le service modèle, mais avant de le lancer, nous devrons envoyer l'image Docker du démon local Docker vers le cache d'images de minikube :
 
 
-```python
-minikube image load insurance_charges_model_service:0.1.0
-```
-Le chargement prend un moment. La commande suivante confirme que l'image docker a bien été chargée :
+On peut vérifier que le téléchargement de l'image plus tot a bel et bien fonctionné:
+
 ```python
 minikube image ls
 ```
@@ -1248,9 +1296,9 @@ registry.k8s.io/kube-apiserver:v1.28.3
 registry.k8s.io/etcd:3.5.9-0
 registry.k8s.io/coredns/coredns:v1.10.1
 gcr.io/k8s-minikube/storage-provisioner:v5
-docker.io/library/insurance_charges_model_service:0.1.
+nicolasrichard1997/insurance_charges_model_service:0.1.
 ```
-On retrouve notre image à la dernière ligne.
+On retrouve notre image à la dernière ligne, dans le cas ci-présent.
 
 Le service modèle devra accéder au fichier de configuration YAML que nous avons utilisé pour le service local ci-dessus. Ce fichier se trouve dans le dossier /configuration et s'appelle "kubernetes_rest_config.yaml", il est personnalisé pour l'environnement Kubernetes que nous sommes en train de construire.
 
@@ -1330,3 +1378,278 @@ kubectl logs -n model-services insurance-charges-model-deployment-77b7d76c85-77p
 {"asctime": "2023-11-13 20:03:51,360", "pod_name": "insurance-charges-model-deployment-77b7d76c85-77p45", "node_name": "minikube", "app_name": "insurance-charges-model-service", "name": "insurance_charges_model_logger", "levelname": "INFO", "message": "Prediction requested.", "action": "predict", "model_qualified_name": "insurance_charges_model", "model_version": "0.1.0", "age": 20, "sex": "male", "bmi": 15.0, "children": 0, "smoker": true, "region": "southwest"}
 {"asctime": "2023-11-13 20:03:52,241", "pod_name": "insurance-charges-model-deployment-77b7d76c85-77p45", "node_name": "minikube", "app_name": "insurance-charges-model-service", "name": "insurance_charges_model_logger", "levelname": "INFO", "message": "Prediction created.", "action": "predict", "model_qualified_name": "insurance_charges_model", "model_version": "0.1.0", "status": "success", "charges": 17751.17}
 ```
+## Création d'un système de Logs
+
+La complexité de l'environnement cloud moderne rend difficile la gestion des journaux sur des serveurs individuels, car nous ne savons vraiment pas à l'avance où nos charges de travail seront planifiées. Les charges de travail Kubernetes sont hautement distribuées, ce qui signifie qu'une application peut être répliquée sur de nombreux nœuds différents d'un cluster. Cela rend nécessaire de rassembler les journaux en un seul endroit afin que nous puissions les visualiser et les analyser plus facilement.
+
+Pour commencer, installons les définitions de ressources personnalisées nécessaires à l'opérateur :
+
+```
+kubectl create -f https://download.elastic.co/downloads/eck/2.7.0/crds.yaml
+```
+```
+customresourcedefinition.apiextensions.k8s.io/agents.agent.k8s.elastic.co created
+customresourcedefinition.apiextensions.k8s.io/apmservers.apm.k8s.elastic.co created
+customresourcedefinition.apiextensions.k8s.io/beats.beat.k8s.elastic.co created
+customresourcedefinition.apiextensions.k8s.io/elasticmapsservers.maps.k8s.elastic.co created
+customresourcedefinition.apiextensions.k8s.io/elasticsearchautoscalers.autoscaling.k8s.elastic.co created
+customresourcedefinition.apiextensions.k8s.io/elasticsearches.elasticsearch.k8s.elastic.co created
+customresourcedefinition.apiextensions.k8s.io/enterprisesearches.enterprisesearch.k8s.elastic.co created
+customresourcedefinition.apiextensions.k8s.io/kibanas.kibana.k8s.elastic.co created
+customresourcedefinition.apiextensions.k8s.io/stackconfigpolicies.stackconfigpolicy.k8s.elastic.co created
+``````
+Nous utiliserons ces CRDs :
+```
+elasticsearch.k8s.elastic.co, to deploy ElasticSearch for storing and indexing logs
+kibana.k8s.elastic.co, to deploy Kibana for viewing logs
+beat.k8s.elastic.co, to deploy Filebeat on each node to forward logs to ElasticSearch
+```
+
+Les CRDs sont utilisés par l'opérateur ECK pour gérer les ressources du cluster. Pour installer l'opérateur ECK lui-même, exécutez cette commande :
+
+```
+kubectl apply -f https://download.elastic.co/downloads/eck/2.7.0/operator.yaml
+```
+```
+namespace/elastic-system created
+serviceaccount/elastic-operator created
+secret/elastic-webhook-server-cert created
+configmap/elastic-operator created
+clusterrole.rbac.authorization.k8s.io/elastic-operator created
+clusterrole.rbac.authorization.k8s.io/elastic-operator-view created
+clusterrole.rbac.authorization.k8s.io/elastic-operator-edit created
+clusterrolebinding.rbac.authorization.k8s.io/elastic-operator created
+service/elastic-webhook-server created
+statefulset.apps/elastic-operator created
+validatingwebhookconfiguration.admissionregistration.k8s.io/elastic-webhook.k8s.elastic.co created
+```
+
+### ElasticSearch
+
+Nous stockerons les journaux dans ElasticSearch. ElasticSearch est un moteur de recherche en texte intégral distribué avec une API RESTful. Le service ElasticSearch est idéal pour nos besoins car nos logs sont constitués de chaînes de texte.
+
+Nous sommes maintenant prêts à installer le service en appliquant la définition de ressource personnalisée « ElasticSearch » :
+
+```
+apiVersion: elasticsearch.k8s.elastic.co/v1
+kind: Elasticsearch
+metadata:
+  name: quickstart
+spec:
+  version: 8.7.0
+  nodeSets:
+  - name: default
+    count: 1
+    config:
+      node.store.allow_mmap: false
+```
+Le CRD est stocké dans le fichier kubernetes/elastic_search.yaml. Le CRD est appliqué avec cette commande :
+
+```
+kubectl apply -n elastic-system -f ../kubernetes/elastic_search.yaml
+```
+elasticsearch.elasticsearch.k8s.elastic.co/quickstart created
+
+Pour obtenir une liste des clusters ElasticSearch actuellement définis dans le cluster, exécutez cette commande :
+
+```
+kubectl get elasticsearch -n elastic-system
+```
+```
+NAME         HEALTH   NODES   VERSION   PHASE   AGE
+quickstart   green    1       8.7.0     Ready   116s
+```
+Nous pouvons examiner les pods exécutant le cluster ElasticSearch :
+
+```
+kubectl get pods -n elastic-system --selector='elasticsearch.k8s.elastic.co/cluster-name=quickstart'
+```
+```
+NAME                      READY   STATUS    RESTARTS   AGE
+quickstart-es-default-0   1/1     Running   0          116s
+```
+Un service Kubernetes est créé pour rendre le service ElasticSearch disponible aux autres services du cluster :
+
+```
+kubectl get service quickstart-es-http -n elastic-system
+```
+
+```
+NAME                 TYPE        CLUSTER-IP      EXTERNAL-IP   PORT(S)    AGE
+quickstart-es-http   ClusterIP   10.106.185.54   <none>        9200/TCP   2m2s
+```
+
+Un utilisateur nommé « elastic » est automatiquement dans les services ElasticSearch avec le mot de passe stocké dans un secret Kubernetes. Accédez au mot de passe :
+
+```
+kubectl get secret quickstart-es-elastic-user -n elastic-system -o=jsonpath='{.data.elastic}' | base64 --decode; echo
+```
+```
+DD097Fe67Qs320Uw6JHIy2Vb
+```
+### Kibana
+
+Pour afficher les journaux, nous utiliserons Kibana. Kibana est une application Web qui peut fournir un accès et visualiser les journaux stockés dans ElasticSearch.
+
+Le CRD pour Kibana ressemble à ceci :
+```
+apiVersion: kibana.k8s.elastic.co/v1
+kind: Kibana
+metadata:
+  name: quickstart
+spec:
+  version: 8.7.0
+  count: 1
+  elasticsearchRef:
+    name: quickstart
+``````
+
+Nous allons appliquer le CRD avec cette commande :
+
+```
+kubectl apply -n elastic-system -f ../kubernetes/kibana.yaml
+```
+```
+kibana.kibana.k8s.elastic.co/quickstart created
+```
+Semblable à Elasticsearch, vous pouvez récupérer des détails sur les instances Kibana :
+```
+kubectl get kibana -n elastic-system
+```
+```
+NAME         HEALTH   NODES   VERSION   AGE
+quickstart   green    1       8.7.0     51s
+```
+On peut également visualiser les Pods associés :
+
+```
+kubectl get pod -n elastic-system --selector='kibana.k8s.elastic.co/name=quickstart'
+```
+```
+NAME                             READY   STATUS    RESTARTS   AGE
+quickstart-kb-589dc4f75b-ncpd7   1/1     Running   0          53s
+```
+
+Un service ClusterIP est automatiquement créé pour Kibana :
+
+```
+kubectl get service quickstart-kb-http -n elastic-system
+```
+```
+NAME                 TYPE        CLUSTER-IP      EXTERNAL-IP   PORT(S)    AGE
+quickstart-kb-http   ClusterIP   10.111.166.26   <none>        5601/TCP   57s
+```
+
+
+Nous utiliserons kubectl port-forward pour accéder à Kibana à partir d'un navigateur Web local :
+```
+kubectl port-forward service/quickstart-kb-http 5601 -n elastic-system
+```
+Now we can access the Kibana service from this URL:
+```
+https://localhost:5601 
+```
+or
+```
+http://localhost:5601 
+```
+Ouvrez l'URL dans votre navigateur pour afficher l'interface utilisateur de Kibana. Connectez-vous en tant qu'utilisateur "élastique". Le mot de passe est celui que nous avons récupéré ci-dessus.
+
+
+### Filebeat
+
+Afin de centraliser l'accès aux journaux, nous aurons d'abord besoin d'un moyen de récupérer les journaux des nœuds de cluster individuels et de les transmettre au service d'agrégation. Le service que nous utiliserons pour ce faire s'appelle Filebeat. Filebeat est un service léger qui peut transférer les journaux stockés dans des fichiers vers un service externe. Nous allons déployer Filebeat en tant que DaemonSet pour garantir qu'il existe une instance en cours d'exécution sur chaque nœud du cluster.
+
+```
+apiVersion: beat.k8s.elastic.co/v1beta1
+kind: Beat
+metadata:
+  name: quickstart
+spec:
+  type: filebeat
+  version: 8.7.0
+  elasticsearchRef:
+    name: quickstart
+  kibanaRef:
+    name: quickstart
+  config:
+    processors:
+      - decode_json_fields:
+          fields: ["message"]
+          max_depth: 3
+          target: parsed_message
+          add_error_key: false
+    filebeat.inputs:
+    - type: container
+      paths:
+      - /var/log/containers/*.log
+  daemonSet:
+    podTemplate:
+      spec:
+        dnsPolicy: ClusterFirstWithHostNet
+        hostNetwork: true
+        securityContext:
+          runAsUser: 0
+        containers:
+        - name: filebeat
+          volumeMounts:
+          - name: varlogcontainers
+            mountPath: /var/log/containers
+          - name: varlogpods
+            mountPath: /var/log/pods
+          - name: varlibdockercontainers
+            mountPath: /var/lib/docker/containers
+        volumes:
+        - name: varlogcontainers
+          hostPath:
+            path: /var/log/containers
+        - name: varlogpods
+          hostPath:
+            path: /var/log/pods
+        - name: varlibdockercontainers
+          hostPath:
+            path: /var/lib/docker/containers
+```
+Le dossier hôte des journaux du conteneur (/var/log/containers) est monté sur le conteneur Filebeat. Le processus filebeat a également un processeur défini :
+
+```
+decode_json_fields, which decodes fields containing JSON strings and replaces the strings with valid JSON objects
+```
+Appliquons le CRD pour créer le Filebeat DaemonSet :
+
+```
+!kubectl apply -n elastic-system -f ../kubernetes/filebeat.yaml
+```
+```
+beat.beat.k8s.elastic.co/quickstart created
+```
+Les détails sur le service Filebeat peuvent être consultés comme ceci :
+```
+kubectl get beat -n elastic-system 
+```
+```
+NAME         HEALTH   AVAILABLE   EXPECTED   TYPE       VERSION   AGE
+quickstart   green    1           1          filebeat   8.7.0     35s
+```
+
+Les pods exécutant le service peuvent être répertoriés comme ceci :
+
+```
+!kubectl get pods -n elastic-system --selector='beat.k8s.elastic.co/name=quickstart'
+```
+```
+NAME                             READY   STATUS    RESTARTS   AGE
+quickstart-beat-filebeat-znwsf   1/1     Running   0          38s
+```
+
+Le service Filebeat s'exécute sur le nœud unique du cluster.
+
+Les journaux sont transmis à ElasticSearch et peuvent être consultés dans Kibana ! Maintenant,
+nous avons des journaux arrivant du service de modèles et pouvons les visualiser dans Kibana !
+
+# Conclusion
+
+Dans ce blog, nous avons été en mesure d'entraîner un modèle d'apprentisage automatique, d'y ajouter des logs personalisés et de le déployer localement sur Docker et Kubernetes. 
+
+# Remerciements 
+Merci à Brian Schmidt pour les ressources et les blogs. 

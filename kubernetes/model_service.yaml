@@ -19,7 +19,7 @@ spec:
     spec:
       containers:
         - name: insurance-charges-model
-          image: insurance_charges_model_service:0.1.0
+          image: nicolasrichard1997/insurance_charges_model_service:0.1.0
           ports:
           - containerPort: 80
             protocol: TCP
