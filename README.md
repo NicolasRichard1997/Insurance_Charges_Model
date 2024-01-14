@@ -76,7 +76,14 @@ uvicorn rest_model_service.main:app --reload
 
 On peut effectuer des prédictions à l'aide de la méthode "POST". On peut arrêter le service en tuant (kill) le terminal
 
-## Génération d'une Spécification OpenAPI
+On peut effectuer des prédictions à l'aide de la méthode "POST". On peut arrêter le service en tuant (kill) le terminal
+
+
+## Docker
+
+**Veuillez suivre les insructions dans le blog afin de générer une image déployable sur Kubernetes**
+
+### Génération d'une Spécification OpenAPI
 
 Pour générer le fichier de spécification OpenAPI pour le service REST qui héberge le modèle, exécutez ces commandes :
 
@@ -85,21 +92,12 @@ export PYTHONPATH=./
 generate_openapi --output_file=service_contract.yaml 
 ```
 
-## Docker
+Pour construire une image Docker pour le service local seulement, exécutez cette commande :
 
-Les instruction suivantes visent à créer une image Docker localement et l'éxécuter.
-
-Il serait aussi possible d'aller chercher l'image sur DockerHub
- à l'aide de la commande suivante:
- 
- ```bash
-docker pull nicolasrichard1997/insurance_charges_model:0.1.0
-```
-
-Pour construire une image Docker localement, exécutez cette commande :
+**Veuillez suivre les insructions dans le blog afin de générer une image déployable sur Kubernetes**
 
 ```
-docker build -t insurance_charges_model:0.1.0 .
+`docker build -t insurance_charges_model:0.1.0 .` 
 ```
 Pour exécuter l'image, utilisez cette commande :
 
@@ -107,7 +105,8 @@ Pour exécuter l'image, utilisez cette commande :
 Avec l'image locale ou l'image de dockerhub:
 
 ```
-docker run -d -p 8000:8000 insurance_charges_model:0.1.0
+
+`docker run -d -p 8000:8000 insurance_charges_model:0.1.0` 
 ```
 
 Pour surveiller les journaux provenant de l'image, exécutez cette commande :
