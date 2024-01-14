@@ -1,4 +1,4 @@
-service_title: Insurance Charges Model Service
+service_title: Insurance Charges Model
 models:
   - class_path: insurance_charges_model.prediction.model.InsuranceChargesModel
     create_endpoint: true

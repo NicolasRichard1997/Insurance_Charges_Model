@@ -97,7 +97,7 @@ Pour construire une image Docker pour le service local seulement, exécutez cett
 **Veuillez suivre les insructions dans le blog afin de générer une image déployable sur Kubernetes**
 
 ```
-`docker build -t insurance_charges_model:0.1.0 .` 
+docker build -t insurance_charges_model:0.1.0 .
 ```
 Pour exécuter l'image, utilisez cette commande :
 
@@ -106,7 +106,7 @@ Avec l'image locale ou l'image de dockerhub:
 
 ```
 
-`docker run -d -p 8000:8000 insurance_charges_model:0.1.0` 
+docker run -d -p 8000:8000 insurance_charges_model:0.1.0
 ```
 
 Pour surveiller les journaux provenant de l'image, exécutez cette commande :
@@ -122,26 +122,22 @@ docker kill $(docker ps -lq)
 
 ## Déployer le service localement sur Kubernetes avec Minikube
 
-On démarre Minikube et le ssh:
+On démarre Minikube et le SSH:
 
 ```
-minikube start
-minikube ssh
+minikube start && minikube ssh
 ```
 
 On procède ensuite à chargée l'image dans le cluster Minikube avant
 de quitter le service SSH, comme suit:
 
 ```
-docker pull nicolasrichard1997/insurance_charges_model:0.1.0
+docker pull nicolasrichard1997/insurance_charges_model:0.1.0 && exit
 ```
-l'image devrait éventuellement télécharger. On quitte la session SSH avec la commande:
-```
-exit
-```
+l'image devrait éventuellement télécharger.
 
 
-Les commandes suivantes sont nécessaire pour créer un pod:
+Les commandes suivantes sont ensuite nécessaire pour créer un pod:
 
 ```python
 kubectl create -f kubernetes/namespace.yaml
@@ -152,10 +148,28 @@ kubectl create configmap model-service-configuration -n model-services --from-fi
 ```python
 kubectl apply -n model-services -f ./kubernetes/model_service.yaml
 ```
-Finalement, on peut accéder au modèle comme suit:
-```bash
-minikube service insurance-charges-model-service --url -n model-services
+
+avec la commande suivante, on peut s'assurer que le service fonctionne:
+
 ```
+kubectl get pods -n model-services
+```
+ce qui devrait retourner:
+
+
+```
+NAME                                                 READY   STATUS    RESTARTS      AGE
+insurance-charges-model-deployment-XXXXXXX-XXXXX   1/1     Running   2 (79s ago)  2m22s
+```
+
+Quand le service fonctionne (STATUS:Running, comme ci-haut), on peut accéder au modèle comme suit:
+
+```bash
+kubectl port-forward pod/insurance-charges-model-deployment-XXXXXXX-XXXXX 8000:8000 -n model-services
+```
+
+Le service devrait être accessible après quelques secondes sur le port 8000 de votre machine.
+
 Il est aussi possible d'accéder aux logs du modèle comme suit, en prenant soin d'y mentionner le nom spécifique du dépoloiement:
 
 ```python
@@ -163,7 +177,7 @@ kubectl get deployments -n model-services
 ```
 avec le nom du déploiement:
 ```python
-kubectl logs -n model-services insurance-charges-model-deployment-XXXXXXXXXXXXXX -c insurance-charges-model | grep "\"action\": \"predict\""
+kubectl logs -n model-services insurance-charges-model-deployment-XXXXXX-XXXXXXXX -c insurance-charges-model | grep "\"action\": \"predict\""
 ```
 # Remerciements
 
