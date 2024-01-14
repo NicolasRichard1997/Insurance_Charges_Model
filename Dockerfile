@@ -6,6 +6,9 @@ ENV VIRTUAL_ENV=/opt/venv
 RUN python3 -m venv $VIRTUAL_ENV
 ENV PATH="$VIRTUAL_ENV/bin:$PATH"
 
+
+COPY ./rest_config.yaml ./rest_config.yaml
+
 # Installing dependencies
 COPY ./service_requirements.txt ./service_requirements.txt
 RUN pip install --no-cache -r service_requirements.txt
@@ -32,6 +35,7 @@ WORKDIR /service
 # Copy necessary files
 COPY ./insurance_charges_model ./insurance_charges_model
 COPY ./rest_configuration.yaml ./rest_configuration.yaml
+COPY ./rest_config.yaml ./rest_config.yaml
 COPY ./service_requirements.txt ./service_requirements.txt
 COPY ./kubernetes_rest_config.yaml ./kubernetes_rest_config.yaml
 COPY ./configuration ./configuration
